@@ -699,7 +699,7 @@ StatusCode sTgcDigitizationTool::doDigitization() {
 			ATH_MSG_VERBOSE(" charge = "    << newDigit->charge()) ;
 
             // Create a MuonSimData (SDO) corresponding to the digit
-            MuonSimData::Deposit deposit(hit.particleLink(), MuonMCData(hit.depositEnergy(), tof));
+            MuonSimData::Deposit deposit(trklink, MuonMCData(hit.depositEnergy(), tof));
             std::vector<MuonSimData::Deposit> deposits;
             deposits.push_back(deposit);
             MuonSimData simData(deposits, hit.particleEncoding());
