@@ -3,15 +3,16 @@
 */
 
 #include "InDetVKalVxInJetTool/InDetTrkInJetType.h"
-#include "TMVA/MethodBDT.h"
-#include "TMVA/Reader.h"
+#include "TFile.h"
+#include "TTree.h"
+#include "TString.h"
+#include "TROOT.h"
 #include "PathResolver/PathResolver.h"
 #include "TLorentzVector.h"
 #include "TrkVKalVrtFitter/TrkVKalVrtFitter.h"
 
 #include "Particle/TrackParticle.h"
 #include "MVAUtils/BDT.h" 
-#include "MVAUtils/TMVAToMVAUtils.h"
 #include "GaudiKernel/IChronoStatSvc.h"
 //
 //-------------------------------------------------
@@ -22,7 +23,6 @@ InDetTrkInJetType::InDetTrkInJetType(const std::string& type,
                                            const std::string& name,
                                            const IInterface* parent):
   base_class(type,name,parent),
-  m_tmvaReader(nullptr),
   m_localBDT(nullptr),
   m_trkSctHitsCut(4),
   m_trkPixelHitsCut(1),
@@ -34,7 +34,7 @@ InDetTrkInJetType::InDetTrkInJetType(const std::string& type,
   m_d0_limUpp( 5.),
   m_Z0_limLow(-8.),
   m_Z0_limUpp(12.),
-  m_calibFileName("TrackClassif_3cl.v02.xml"),
+  m_calibFileName("TrackClassif_3cl.v02.xml"), // Warning: The file at the extension is yet to be updated from xml to root.
   m_fitterSvc("Trk::TrkVKalVrtFitter/VertexFitterTool",this)
   {
      declareProperty("trkSctHits",   m_trkSctHitsCut   ,  "Cut on track SCT hits number" );
@@ -60,34 +60,19 @@ InDetTrkInJetType::InDetTrkInJetType(const std::string& type,
 //Initialize---------------------------------------------------------------
    StatusCode InDetTrkInJetType::initialize(){
      m_initialised = 0;
-     m_tmvaReader = new TMVA::Reader();
-     //m_tmvaReader->AddVariable( "prbS",  &m_prbS );
-     m_tmvaReader->AddVariable( "Sig3D",  &m_Sig3D );
-     m_tmvaReader->AddVariable( "prbP",   &m_prbP );
-     m_tmvaReader->AddVariable( "pTvsJet",&m_pTvsJet );
-     //m_tmvaReader->AddVariable( "prodTJ", &m_prodTJ );
-     m_tmvaReader->AddVariable( "d0",     &m_d0 );
-     m_tmvaReader->AddVariable( "SigR",   &m_SigR );
-     m_tmvaReader->AddVariable( "SigZ",   &m_SigZ );
-     m_tmvaReader->AddVariable( "ptjet",  &m_ptjet );
-     m_tmvaReader->AddVariable( "ibl"   , &m_ibl );
-     m_tmvaReader->AddVariable( "bl"   ,  &m_bl );
-     m_tmvaReader->AddVariable( "etatrk", &m_etatrk );
 //
 //-- Calibration file
 //
-     std::string fullPathToFile = PathResolverFindCalibFile("InDetVKalVxInJetTool/"+m_calibFileName);
+     TString fullPathToFile = PathResolverFindCalibFile("InDetVKalVxInJetTool/"+m_calibFileName); // Warning: The file at the extension is yet to be updated from xml to root.
+
+     TFile bdt_file(fullPathToFile,"READ"); // Read calibration .root file
+     TTree *BDT_tree = (TTree*)bdt_file.Get("BDT"); // Tree name is by default BDT
+
      if(fullPathToFile != ""){
+
         if(msgLvl(MSG::DEBUG))msg(MSG::DEBUG) <<"TrackClassification calibration file" << fullPathToFile << endmsg;
-        m_tmvaReader->BookMVA("BDTG", fullPathToFile);
-        TMVA::MethodBDT* method_bdt = dynamic_cast<TMVA::MethodBDT*> (m_tmvaReader->FindMVA("BDTG"));
-	if(!method_bdt){    ATH_MSG_DEBUG("Error! No method_BDT for TrackClassification!");
-                            return StatusCode::SUCCESS;  }
-        bool useYesNoLeaf = false;
-        bool isGrad       = false;
-        if(method_bdt->GetOptions().Contains("UseYesNoLeaf=True")) useYesNoLeaf = true;
-        if(method_bdt->GetOptions().Contains("BoostType=Grad")) isGrad = true;
-        m_localBDT = TMVAToMVAUtils::convert(method_bdt, isGrad, useYesNoLeaf).release();
+        m_localBDT = new MVAUtils::BDT(BDT_tree); // Pass BDT tree
+
         if(!m_localBDT){   ATH_MSG_DEBUG("Error! No_BDT from MVAUtils created");
           return StatusCode::SUCCESS; }
      }else{
