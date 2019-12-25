@@ -377,7 +377,9 @@ template<typename T,typename Tint,typename Trandom=float> class TFCS1DFunction_H
       if(m>2) m=2;
       if(m<-2) m=-2;
       Trandom x=fabs(m)>0.001 ? (0.5*std::sqrt(m*(m+8*drnd-4)+4)-1)/m+0.5 : drnd;
-      return (1-x)*m_array[pos] + x*m_array[pos+1];
+      T pos1=GetBinLowEdge(pos);
+      T pos2=GetBinLowEdge(pos+1);
+      return (1-x)*pos1 + x*pos2;
     };
 
     ///return exponentially interpolated position for bin pos, such that histograming the position gives a linear slope m,
