@@ -120,6 +120,24 @@ def getInDetPhysHitDecoratorAlg(**kwargs) :
                                          ResidualPullCalculator = 'Trk::ResidualPullCalculator/ResidualPullCalculator',
                                          TrackParticleContainerName = 'InDetTrackParticles')
 
+def getInDetRttTruthSelectionTool(**kwargs) :
+    # should match truth selection of truth decorator
+    from AthenaCommon.AppMgr import ToolSvc
+    the_name='AthTruthSelectionTool'
+    if hasattr(ToolSvc,the_name) :
+        return getattr(ToolSvc,the_name)
+    from InDetPhysValMonitoring.InDetPhysValMonitoringConf import AthTruthSelectionTool
+    comb_kwargs={}
+    comb_kwargs.update(requireStatus1 = True,
+                      requireCharged = True,
+                      maxBarcode = ( 200*1000 if kwargs.pop("OnlyDressPrimaryTracks",True) else 2**31-1 ),
+                      maxProdVertRadius = 110.,
+                      maxEta = 2.5,
+                      minPt = 400. )
+    comb_kwargs.update(kwargs)
+    tool=AthTruthSelectionTool(**comb_kwargs)
+    ToolSvc += tool
+    return tool
 
 def getParameterErrDecoratorAlg(**kwargs) :
     '''
