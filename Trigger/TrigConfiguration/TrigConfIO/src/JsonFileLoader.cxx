@@ -50,14 +50,14 @@ TrigConf::JsonFileLoader::findFile(const std::string & filename) const {
    }
          
    // resolve location using XMLPATH
-   std::string fnCopy(filename);
+   std::string fnCopy(dp);
    char *token = std::strtok( &*fnCopy.begin(), ":");
    while ( token != nullptr ) {
       std::cout << token << '\n';
       std::filesystem::path fullname(token); 
       fullname /= filename;
       if( std::filesystem::exists( fullname ) ) {
-         return filename;
+         return fullname;
       }
       // go to the next 
       token = std::strtok( nullptr, " ");
