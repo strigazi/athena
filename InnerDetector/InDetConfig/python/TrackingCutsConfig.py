@@ -23,7 +23,7 @@ def addTrackingFlags():
 	## constants
 	max_holes = 3 ##was 5   
 
-	icf.addFlag("InDet.NewTracking.extension, "")
+	icf.addFlag("InDet.NewTracking.extension", "")
 	icf.addFlag("InDet.NewTracking.minPT", 0.1 * Units.GeV)
 	icf.addFlag("InDet.NewTracking.minSecondaryPt", 0.4 * Units.GeV) #Pt cut for back tracking + segment finding for these
 	icf.addFlag("InDet.NewTracking.minTRTonlyPt", 0.4 * Units.GeV) #Pt cut for TRT only
@@ -88,37 +88,37 @@ def addTrackingFlags():
 	# --- defaults for secondary tracking
 	icf.addFlag("InDet.NewTracking.maxSecondaryImpact", 100.0 * Units.mm) # low lumi
 	
-	icf.addFlag("InDet.NewTracking.minSecondaryClusters      , 4)
-	icf.addFlag("InDet.NewTracking.minSecondarySiNotShared   , 4)
-	icf.addFlag("InDet.NewTracking.maxSecondaryShared        , 1)  # cut is now on number of shared modules
-	icf.addFlag("InDet.NewTracking.minSecondaryTRTonTrk      , 10)
-	icf.addFlag("InDet.NewTracking.minSecondaryTRTPrecFrac   , 0.0)
-	icf.addFlag("InDet.NewTracking.maxSecondaryHoles         , 2)
-	icf.addFlag("InDet.NewTracking.maxSecondaryPixelHoles    , 2)
-	icf.addFlag("InDet.NewTracking.maxSecondarySCTHoles      , 2)
-	icf.addFlag("InDet.NewTracking.maxSecondaryDoubleHoles   , 1)
-	icf.addFlag("InDet.NewTracking.SecondarynHolesMax        , InDet.NewTracking.maxSecondaryHoles)
-	icf.addFlag("InDet.NewTracking.SecondarynHolesGapMax     , InDet.NewTracking.maxSecondaryHoles)
+	icf.addFlag("InDet.NewTracking.minSecondaryClusters"      , 4)
+	icf.addFlag("InDet.NewTracking.minSecondarySiNotShared"   , 4)
+	icf.addFlag("InDet.NewTracking.maxSecondaryShared"        , 1)  # cut is now on number of shared modules
+	icf.addFlag("InDet.NewTracking.minSecondaryTRTonTrk"      , 10)
+	icf.addFlag("InDet.NewTracking.minSecondaryTRTPrecFrac"   , 0.0)
+	icf.addFlag("InDet.NewTracking.maxSecondaryHoles"         , 2)
+	icf.addFlag("InDet.NewTracking.maxSecondaryPixelHoles"    , 2)
+	icf.addFlag("InDet.NewTracking.maxSecondarySCTHoles"      , 2)
+	icf.addFlag("InDet.NewTracking.maxSecondaryDoubleHoles"   , 1)
+	icf.addFlag("InDet.NewTracking.SecondarynHolesMax"        , InDet.NewTracking.maxSecondaryHoles)
+	icf.addFlag("InDet.NewTracking.SecondarynHolesGapMax"     , InDet.NewTracking.maxSecondaryHoles)
 
-	icf.addFlag("InDet.NewTracking.rejectShortExtensions     , False) # extension finder in back tracking
-	icf.addFlag("InDet.NewTracking.SiExtensionCuts           , False) # cut in Si Extensions before fit
+	icf.addFlag("InDet.NewTracking.rejectShortExtensions"     , False) # extension finder in back tracking
+	icf.addFlag("InDet.NewTracking.SiExtensionCuts"           , False) # cut in Si Extensions before fit
 
 	# --- pattern cuts for back tracking
-	icf.addFlag("InDet.NewTracking.SecondaryXi2max           , 15.0)
-	icf.addFlag("InDet.NewTracking.SecondaryXi2maxNoAdd      , 50.0)
+	icf.addFlag("InDet.NewTracking.SecondaryXi2max"           , 15.0)
+	icf.addFlag("InDet.NewTracking.SecondaryXi2maxNoAdd"      , 50.0)
 
 	# --- run back tracking and TRT only in RoI seed regions
-	icf.addFlag("InDet.NewTracking.RoISeededBackTracking     , False)
+	icf.addFlag("InDet.NewTracking.RoISeededBackTracking"     , False)
 
 	# --------------------------------------
 	# --- TRT Only TRACKING cuts
 	# --------------------------------------
 
 	# --- TRT only
-	icf.addFlag("InDet.NewTracking.minTRTonly                , 15)
-	icf.addFlag("InDet.NewTracking.maxTRTonlyShared          , 0.7)
-	icf.addFlag("InDet.NewTracking.useTRTonlyParamCuts       , False)
-	icf.addFlag("InDet.NewTracking.useTRTonlyOldLogic        , True)
+	icf.addFlag("InDet.NewTracking.minTRTonly"                , 15)
+	icf.addFlag("InDet.NewTracking.maxTRTonlyShared"          , 0.7)
+	icf.addFlag("InDet.NewTracking.useTRTonlyParamCuts"       , False)
+	icf.addFlag("InDet.NewTracking.useTRTonlyOldLogic"        , True)
 
 	#
 	# --------------------------------------
