@@ -442,6 +442,28 @@ def InDetTestPixelLayerToolCfg(flags, name = "InDetTestPixelLayerTool", **kwargs
   result.setPrivateTools( tool )
   return result
 
+def InDetTestBLayerToolCfg(flags, name='InDetRecTestBLayerTool', **kwargs) :
+  acc = ComponentAccumulator()
+  the_name = makeName( name, kwargs)
+
+  if not flags.DetFlags.pixel_on:
+      return None
+
+  if 'Extrapolator' not in kwargs :
+    from  InDetRecToolConfig import InDetExtrapolatorCfg
+    InDetExtrapolator = acc.popToolsAndMerge(InDetExtrapolatorCfg(flags))
+    acc.addPublicTool(InDetExtrapolator)
+    kwargs.setdefault("Extrapolator", InDetExtrapolator)
+
+  if 'PixelSummaryTool' not in kwargs :
+    InDetPixelConditionsSummaryTool = PixelConditionsSummaryToolCfg(flags)
+    acc.addPublicTool(InDetPixelConditionsSummaryTool)
+    kwargs.setdefault( "PixelSummaryTool", InDetPixelConditionsSummaryTool)
+
+  InDetTestBLayerTool = CompFactory.InDet.InDetTestBLayerTool(name=the_name, **kwargs)
+  acc.setPrivateTools(InDetTestBLayerTool)
+  return acc
+
 def InDetPropagatorCfg(flags, name='InDetPropagator',**kwargs):
   the_name = makeName( name, kwargs)
   result = ComponentAccumulator()

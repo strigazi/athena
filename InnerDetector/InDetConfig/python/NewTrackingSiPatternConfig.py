@@ -3,6 +3,7 @@ from AthenaConfiguration.ComponentAccumulator import ComponentAccumulator
 from AthenaConfiguration.ComponentFactory     import CompFactory
 from InDetRecExample.InDetKeys		      import InDetKeys
 import TrackingCommonConfig                     as   TC
+import InDetRecToolConfig                       as   RTC
 import AthenaCommon.SystemOfUnits               as   Units
 
 ################################################### Configuration KalmanFitter ############################################################
@@ -83,7 +84,7 @@ def Trk__RIO_OnTrackCreatorCfg(name="InDetRotCreator", **kwargs) :
 def Trk__KalmanFitterCfg(flags, name="InDetTrackFitter", **kwargs) :
 	acc = ComponentAccumulator()
 
-	InDetExtrapolator = acc.popToolsAndMerge(TC.InDetExtrapolatorCfg(flags))
+	InDetExtrapolator = acc.popToolsAndMerge(RTC.InDetExtrapolatorCfg(flags))
 	acc.addPublicTool(InDetExtrapolator)
 
 	InDetRotCreator = acc.popToolsAndMerge(Trk__RIO_OnTrackCreatorCfg())

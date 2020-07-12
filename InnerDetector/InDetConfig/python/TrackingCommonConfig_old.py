@@ -426,8 +426,150 @@ def InDetRefitRotCreatorCfg(flags, name='InDetRefitRotCreator', **kwargs) :
                 return acc
     return InDetRotCreatorCfg(flags, name = name, **kwargs)
 
+####################################################################################################################################
+
+#used in ConfiguredTRTSegmentFindingCfg
+# that function returns tool
+def InDetUpdatorCfg(flags, name = 'InDetUpdator', **kwargs) :
+    the_name = makeName( name, kwargs )
+    if flags.InDetFlags.kalmanUpdator == "fast" :
+        return CompFactory.Trk__KalmanUpdator_xk(name = the_name, **kwargs)
+    elif flags.InDetFlags.kalmanUpdator == "weight" :
+        return CompFactory.Trk__KalmanWeightUpdator(name = the_name, **kwargs)
+    elif flags.InDetFlags.kalmanUpdator == "smatrix" :
+        return CompFactory.Trk__KalmanUpdatorSMatrix(name = the_name, **kwargs)
+    elif flags.InDetFlags.kalmanUpdator == "amg" :
+        return CompFactory.Trk__KalmanUpdatorAmg(name = the_name, **kwargs)
+    else :
+        return CompFactory.Trk__KalmanUpdator(name = the_name, **kwargs)
 
 ####################################################################################################################################
+
+#used in ConfiguredTRTSegmentFindingCfg
+# that function returns tool
+def InDetPropagatorCfg(flags, name='InDetPropagator',**kwargs) :
+    the_name = makeName( name, kwargs)
+    if flags.InDetFlags.propagatorType == "STEP":
+        Propagator = CompFactory.Trk__STEP_Propagator
+    else:
+        Propagator = CompFactory.Trk__RungeKuttaPropagator
+
+    if flags.InDetFlags.propagatorType == "RungeKutta":
+        kwargs = setDefaults(kwargs, AccuracyParameter = 0.0001,
+                      MaxStraightLineStep = .004 ) # Fixes a failed fit
+    return Propagator(name = the_name, **kwargs)
+
+####################################################################################################################################
+
+# that function returns CA with tool and Svc
+def InDetNavigatorCfg(flags, name='InDetNavigator', **kwargs) :
+    the_name = makeName( name, kwargs)
+    acc = ComponentAccumulator()
+    if 'TrackingGeometrySvc' not in kwargs :
+        from TrkDetDescrSvc.AtlasTrackingGeometrySvc import AtlasTrackingGeometrySvc
+        acc.addService(AtlasTrackingGeometrySvc, primary = True) # add service from old style config
+        kwargs.setdefault('TrackingGeometrySvc', acc.getPrimary())
+
+    acc.setPrivateTools(CompFactory.Trk__Navigator(name=the_name,**kwargs ))
+    return acc
+
+####################################################################################################################################
+
+#used in ConfiguredTRTSegmentFindingCfg
+# that function returns tool
+def InDetMaterialEffectsUpdatorCfg(flags, name = "InDetMaterialEffectsUpdator", **kwargs) :
+    the_name = makeName( name, kwargs)
+    if not flags.InDetFlags.solenoidOn:
+        import AthenaCommon.SystemOfUnits as Units
+        kwargs = setDefaults(kwargs, EnergyLoss          = False,
+                      ForceMomentum       = True,
+                      ForcedMomentumValue = 1000*Units.MeV )
+    return CompFactory.Trk__MaterialEffectsUpdator(name = the_name, **kwargs)
+
+####################################################################################################################################
+
+#used in ConfiguredTRTSegmentFindingCfg
+# that function returns CA with private tool and public tools
+def InDetExtrapolatorCfg(flags, name='InDetExtrapolator', **kwargs) :
+    the_name = makeName( name, kwargs)
+    acc = ComponentAccumulator()
+    if 'Propagators' not in kwargs :
+        acc.addPublicTool(InDetPropagatorCfg(flags), primary = True)
+        kwargs.setdefault('Propagators', [ acc.getPrimary() ] ) # [ InDetPropagator, InDetStepPropagator ],
+    propagator= kwargs.get('Propagators')[0].name() if  kwargs.get('Propagators',None) is not None and len(kwargs.get('Propagators',None))>0 else None
+
+    if 'MaterialEffectsUpdators' not in kwargs :
+        acc.addPublicTool(InDetMaterialEffectsUpdatorCfg(flags), primary = True)
+        kwargs.setdefault('MaterialEffectsUpdators', [ acc.getPrimary() ] )
+    material_updator= kwargs.get('MaterialEffectsUpdators')[0].name() if  kwargs.get('MaterialEffectsUpdators',None) is not None and len(kwargs.get('MaterialEffectsUpdators',None))>0  else None
+
+    if 'Navigator' not in kwargs :
+        tool = acc.popToolsAndMerge(InDetNavigatorCfg(flags))
+        acc.addPublicTool(tool, primary = True)
+        kwargs.setdefault('Navigator', acc.getPrimary())
+
+    sub_propagators = []
+    sub_updators    = []
+
+    # -------------------- set it depending on the geometry ----------------------------------------------------
+    # default for ID is (Rk,Mat)
+    sub_propagators += [ propagator ]
+    sub_updators    += [ material_updator ]
+
+    # default for Calo is (Rk,MatLandau)
+    sub_propagators += [ propagator ]
+    sub_updators    += [ material_updator ]
+
+    # default for MS is (STEP,Mat)
+    #  sub_propagators += [ InDetStepPropagator.name() ]
+    sub_updators    += [ material_updator ]
+    # @TODO should check that all sub_propagators and sub_updators are actually defined.
+
+    kwargs = setDefaults(kwargs, SubPropagators          = sub_propagators,
+                  SubMEUpdators           = sub_updators)
+
+    acc.setPrivateTools(CompFactory.Trk__Extrapolator(name = the_name, **kwargs))
+    return acc
+
+####################################################################################################################################
+##### Fitter part begins ###########################################################################################################
+####################################################################################################################################
+
+#def InDetKalmanTrackFitterBase(name='InDetKalmanTrackFitterBase',**kwargs) :
+#    from InDetRecExample import TrackingCommon as TrackingCommon
+#    from TrkKalmanFitter.TrkKalmanFitterConf import Trk__KalmanFitter
+#    from AthenaCommon.AppMgr import ToolSvc
+#    split_cluster_map_extension = kwargs.get('SplitClusterMapExtension','')#
+#
+#    kwargs.setdefault('ExtrapolatorHandle', TrackingCommon.getInDetExtrapolator())
+#    if 'RIO_OnTrackCreatorHandle' not in kwargs :
+#        from InDetRecExample import TrackingCommon as TrackingCommon
+#        kwargs=setDefaults(kwargs,
+#                           RIO_OnTrackCreatorHandle = TrackingCommon.getInDetRefitRotCreator(
+#                               SplitClusterMapExtension = split_cluster_map_extension))
+#
+#    kwargs.setdefault('MeasurementUpdatorHandle', ToolSvc.InDetUpdator)
+#    setTool('KalmanSmootherHandle', 'InDetBKS', kwargs )
+#    setTool('KalmanOutlierLogicHandle', 'InDetKOL',kwargs )
+#    kwargs.setdefault('DynamicNoiseAdjustorHandle', None)
+#    kwargs.setdefault('BrempointAnalyserHandle', None)
+#    kwargs.setdefault('AlignableSurfaceProviderHandle',None)
+#    if len(split_cluster_map_extension)>0 :
+#        if 'RecalibratorHandle' not in kwargs :
+#            the_tool_name = 'InDetMeasRecalibST'
+#            kwargs.setdefault('RecalibratorHandle', CfgGetter.getPublicToolClone(the_tool_name+split_cluster_map_extension,the_tool_name, SplitClusterMapExtension = split_cluster_map_extension) )
+#    else :
+#        setTool('RecalibratorHandle', 'InDetMeasRecalibST', kwargs )
+#    # setTool('InternalDAFHandle','KalmanInternalDAF',kwargs )
+#    # from InDetRecExample.InDetJobProperties import InDetFlags
+#    # kwargs.setdefault('DoDNAForElectronsOnly', True if InDetFlags.doBremRecovery() and InDetFlags.trackFitterType() is 'KalmanFitter' else False)
+#    return Trk__KalmanFitter(name,**kwargs)
+
+
+####################################################################################################################################
+##### Fitter part ends #############################################################################################################
+####################################################################################################################################
+
 #used in ConfiguredTRTSegmentFindingCfg
 def InDetPRDtoTrackMapToolGangedPixelsCfg(flags, name='PRDtoTrackMapToolGangedPixels',**kwargs) :
     the_name = makeName( name, kwargs)
@@ -474,13 +616,11 @@ def InDetTRT_ExtensionToolCosmicsCfg(flags, name='InDetTRT_ExtensionToolCosmics'
     acc = ComponentAccumulator()
 
     if 'Propagator' not in kwargs :
-        from  InDetRecToolConfig import InDetPropagatorCfg
         InDetPropagator = InDetPropagatorCfg(flags)
         acc.addPublicTool(InDetPropagator)
         kwargs=setDefaults(kwargs, Propagator = InDetPropagator)
 
     if 'Extrapolator' not in kwargs :
-        from  InDetRecToolConfig import InDetExtrapolatorCfg
         InDetExtrapolator = acc.popToolsAndMerge(InDetExtrapolatorCfg(flags))
         acc.addPublicTool(InDetExtrapolator)
         kwargs=setDefaults(kwargs, Extrapolator        = InDetExtrapolator)
@@ -657,7 +797,6 @@ def InDetCompetingTRT_DC_ToolCfg(flags, name='InDetCompetingTRT_DC_Tool',**kwarg
     the_name = makeName( name, kwargs)
     acc = ComponentAccumulator()
     if 'Extrapolator' not in kwargs :
-        from  InDetRecToolConfig import InDetExtrapolatorCfg
         InDetExtrapolator = acc.popToolsAndMerge(InDetExtrapolatorCfg(flags))
         acc.addPublicTool(InDetExtrapolator)
         kwargs=setDefaults(kwargs, Extrapolator = InDetExtrapolator)
@@ -754,13 +893,115 @@ def InDetTrigPrdAssociationToolCfg(flags, name='InDetTrigPrdAssociationTool_setu
     return acc
 
 ####################################################################################################################################
+
+#used in ConfiguredNewTrackingTRTExtensionConfig
+def InDetPixelConditionsSummaryToolCfg(flags, name='PixelConditionsSummaryTool', **kwargs) :
+    if flags.InDetFlags.usePixelDCS:
+        kwargs = setDefaults(	kwargs,
+                                IsActiveStates = [ 'READY', 'ON', 'UNKNOWN', 'TRANSITION', 'UNDEFINED' ],
+                                IsActiveStatus = [ 'OK', 'WARNING', 'ERROR', 'FATAL' ])
+    kwargs = setDefaults(	kwargs,
+                            UseByteStream = (flags.globalflags.DataSource=='data'))
+    return CompFactory.PixelConditionsSummaryTool(name = name,**kwargs)
+####################################################################################################################################
+
+#used in ConfiguredNewTrackingTRTExtensionConfig
+def InDetTestPixelLayerToolCfg(flags, name = "InDetTestPixelLayerTool", **kwargs) :
+    acc = ComponentAccumulator()
+    the_name = makeName( name, kwargs)
+    if 'PixelSummaryTool' not in kwargs :
+        InDetPixelConditionsSummaryTool = InDetPixelConditionsSummaryToolCfg(flags)
+        acc.addPublicTool(InDetPixelConditionsSummaryTool)
+        kwargs = setDefaults( kwargs, PixelSummaryTool = InDetPixelConditionsSummaryTool)
+
+    kwargs = setDefaults( 	kwargs,
+                            CheckActiveAreas = flags.InDetFlags.checkDeadElementsOnTrack,
+                            CheckDeadRegions = flags.InDetFlags.checkDeadElementsOnTrack,
+                            CheckDisabledFEs = flags.InDetFlags.checkDeadElementsOnTrack)
+
+    acc.setPrivateTools(CompFactory.InDet__InDetTestPixelLayerTool(name = the_name,**kwargs))
+    return acc
+
+####################################################################################################################################
+
+#used in ConfiguredNewTrackingTRTExtensionConfig
+def InDetHoleSearchToolCfg(flags, name = 'InDetHoleSearchTool', **kwargs) :
+    acc = ComponentAccumulator()
+    the_name = makeName( name, kwargs)
+    
+    if 'Extrapolator' not in kwargs :
+        from TrackingCommonConfig import InDetExtrapolatorCfg
+        InDetExtrapolator = acc.popToolsAndMerge(InDetExtrapolatorCfg(flags))
+        acc.addPublicTool(InDetExtrapolator)
+        kwargs = setDefaults( kwargs, Extrapolator     = InDetExtrapolator)
+
+    if 'PixelSummaryTool' not in kwargs :
+        InDetPixelConditionsSummaryTool = InDetPixelConditionsSummaryToolCfg(flags)
+        acc.addPublicTool(InDetPixelConditionsSummaryTool)
+        kwargs = setDefaults( kwargs, PixelSummaryTool = InDetPixelConditionsSummaryTool if flags.DetFlags.pixel_on else None)
+
+    if 'SctSummaryTool' not in kwargs :
+        kwargs = setDefaults( kwargs, SctSummaryTool   = None  if flags.DetFlags.SCT_on   else None)
+
+    if 'PixelLayerTool' not in kwargs :
+        InDetTestPixelLayerTool = acc.popToolsAndMerge(InDetTestPixelLayerToolCfg(flags))
+        acc.addPublicTool(InDetTestPixelLayerTool)
+        kwargs = setDefaults( kwargs, PixelLayerTool   = InDetTestPixelLayerTool)
+
+    if flags.InDetFlags.doCosmics :
+        kwargs = setDefaults( kwargs, Cosmics = True)
+
+    kwargs = setDefaults( 	kwargs,
+                            usePixel                     = flags.DetFlags.pixel_on,
+                            useSCT                       = flags.DetFlags.SCT_on,
+                            CountDeadModulesAfterLastHit = True)
+
+    acc.setPrivateTools(CompFactory.InDet__InDetTrackHoleSearchTool(name = the_name,**kwargs))
+    return acc
+
+####################################################################################################################################
+
+#used in ConfiguredNewTrackingTRTExtensionConfig
+def InDetSummaryHelperCfg(flags, name='InDetSummaryHelper',**kwargs) :
+    acc = ComponentAccumulator()
+    isHLT=kwargs.pop("isHLT",False)
+    # Configrable version of loading the InDetTrackSummaryHelperTool
+    #
+    if 'AssoTool' not in kwargs :
+        InDetPrdAssociationTool_setup = acc.popToolsAndMerge(InDetPrdAssociationTool_setupCfg(flags))
+        acc.addPublicTool(InDetPrdAssociationTool_setup)
+        InDetTrigPrdAssociationTool = acc.popToolsAndMerge(InDetTrigPrdAssociationToolCfg(flags))
+        acc.addPublicTool(InDetTrigPrdAssociationTool)
+        kwargs = setDefaults( kwargs, AssoTool = InDetPrdAssociationTool_setup   if not isHLT else   InDetTrigPrdAssociationTool)
+    if 'HoleSearch' not in kwargs :
+        InDetHoleSearchTool = acc.popToolsAndMerge(InDetHoleSearchToolCfg(flags))
+        acc.addPublicTool(InDetHoleSearchTool)
+        kwargs = setDefaults( kwargs, HoleSearch = InDetHoleSearchTool) # @TODO trigger specific hole search tool ?
+
+    if not flags.DetFlags.TRT_on :
+        kwargs = setDefaults( kwargs, TRTStrawSummarySvc = "")
+
+    kwargs = setDefaults(	kwargs,
+                            PixelToTPIDTool = None,         # we don't want to use those tools during pattern
+                            TestBLayerTool  = None,         # we don't want to use those tools during pattern
+                            # PixelToTPIDTool = InDetPixelToTPIDTool,
+                            # TestBLayerTool  = InDetRecTestBLayerTool,
+                            RunningTIDE_Ambi = flags.InDetFlags.doTIDE_Ambi,
+                            DoSharedHits    = False,
+                            usePixel        = flags.DetFlags.pixel_on,
+                            useSCT          = flags.DetFlags.SCT_on,
+                            useTRT          = flags.DetFlags.TRT_on)
+    acc.setPrivateTools(CompFactory.InDet__InDetTrackSummaryHelperTool(name = name,**kwargs))
+    return acc
+
+####################################################################################################################################
+
 #used in ConfiguredNewTrackingTRTExtensionConfig
 def InDetSummaryHelperNoHoleSearchCfg(flags, name='InDetSummaryHelperNoHoleSearch',**kwargs) :
     acc = ComponentAccumulator()
     if 'HoleSearch' not in kwargs :
         kwargs = setDefaults( kwargs, HoleSearch = None)
-    from InDetRecToolConfig import InDetTrackSummaryHelperToolCfg
-    acc.setPrivateTools(acc.popToolsAndMerge(InDetTrackSummaryHelperToolCfg(flags, name = name,**kwargs)))
+    acc.setPrivateTools(acc.popToolsAndMerge(InDetSummaryHelperCfg(flags, name = name,**kwargs)))
     return acc
 
 ####################################################################################################################################
@@ -774,8 +1015,7 @@ def InDetTrackSummaryToolCfg(flags, name='InDetTrackSummaryTool',**kwargs) :
     kwargs.pop('isHLT',None)
     do_holes=kwargs.get("doHolesInDet",True)
     if 'InDetSummaryHelperTool' not in kwargs :
-        from InDetRecToolConfig import InDetTrackSummaryHelperToolCfg
-        InDetSummaryHelper = acc.popToolsAndMerge(InDetTrackSummaryHelperToolCfg(flags, **hlt_args))
+        InDetSummaryHelper = acc.popToolsAndMerge(InDetSummaryHelperCfg(flags, **hlt_args))
         acc.addPublicTool(InDetSummaryHelper)
         InDetSummaryHelperNoHoleSearch = acc.popToolsAndMerge(InDetSummaryHelperNoHoleSearchCfg(flags))
         acc.addPublicTool(InDetSummaryHelperNoHoleSearch)
@@ -838,7 +1078,7 @@ def InDetAmbiScoringToolBaseCfg(flags, name='InDetAmbiScoringTool', **kwargs) :
     acc = ComponentAccumulator()
     NewTrackingCuts = kwargs.pop("NewTrackingCuts")
 
-    from InDetRecToolConfig import InDetExtrapolatorCfg
+    from TrackingCommonConfig import InDetExtrapolatorCfg
     InDetExtrapolator = acc.popToolsAndMerge(InDetExtrapolatorCfg(flags))
     acc.addPublicTool(InDetExtrapolator)
 
@@ -919,6 +1159,27 @@ def InDetPixelToTPIDToolCfg(name = "InDetPixelToTPIDTool", **kwargs) :
     acc.setPrivateTools(InDetPixelToTPIDTool)
     return acc
 
+def InDetRecTestBLayerToolCfg(flags, name='InDetRecTestBLayerTool', **kwargs) :
+    acc = ComponentAccumulator()
+    the_name = makeName( name, kwargs)
+
+    if not flags.DetFlags.pixel_on:
+        return None
+
+    if 'Extrapolator' not in kwargs :
+        InDetExtrapolator = acc.popToolsAndMerge(InDetExtrapolatorCfg(flags))
+        acc.addPublicTool(InDetExtrapolator)
+        kwargs = setDefaults( kwargs, Extrapolator     = InDetExtrapolator)
+
+    if 'PixelSummaryTool' not in kwargs :
+        InDetPixelConditionsSummaryTool = InDetPixelConditionsSummaryToolCfg(flags)
+        acc.addPublicTool(InDetPixelConditionsSummaryTool)
+        kwargs = setDefaults( kwargs, PixelSummaryTool = InDetPixelConditionsSummaryTool)
+
+    InDetRecTestBLayerTool = CompFactory.InDet__InDetTestBLayerTool(name=the_name, **kwargs)
+    acc.setPrivateTools(InDetRecTestBLayerTool)
+    return acc
+
 ####################################################################################################################################
 
 def InDetSummaryHelperSharedHitsCfg(flags, name='InDetSummaryHelperSharedHits', **kwargs) :
@@ -929,8 +1190,7 @@ def InDetSummaryHelperSharedHitsCfg(flags, name='InDetSummaryHelperSharedHits', 
         kwargs = setDefaults( kwargs,  PixelToTPIDTool = InDetPixelToTPIDTool)
 
     if 'TestBLayerTool' not in kwargs :
-        from InDetRecToolConfig import InDetTestBLayerToolCfg
-        InDetRecTestBLayerTool = acc.popToolsAndMerge(InDetTestBLayerToolCfg(flags))
+        InDetRecTestBLayerTool = acc.popToolsAndMerge(InDetRecTestBLayerToolCfg(flags))
         acc.addPublicTool(InDetRecTestBLayerTool)
         kwargs = setDefaults( kwargs,  TestBLayerTool  = InDetRecTestBLayerTool)
 
@@ -939,8 +1199,7 @@ def InDetSummaryHelperSharedHitsCfg(flags, name='InDetSummaryHelperSharedHits', 
     if flags.DetFlags.TRT_on:
         kwargs = setDefaults( kwargs,  DoSharedHitsTRT = flags.InDetFlags.doSharedHits)
 
-    from InDetRecToolConfig import InDetTrackSummaryHelperToolCfg
-    acc.setPrivateTools(acc.popToolsAndMerge(InDetTrackSummaryHelperToolCfg(flags, name = name, **kwargs)))
+    acc.setPrivateTools(acc.popToolsAndMerge(InDetSummaryHelperCfg(flags, name = name, **kwargs)))
     return acc
 
 ####################################################################################################################################
