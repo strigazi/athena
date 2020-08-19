@@ -149,6 +149,9 @@ class TrigTauMonAlgBuilder:
     self.__logger.info( "Booking all histograms for alg: %s", monAlg.name )
 
     for trigger in triggers:
+
+      info = self.getTrigInfo(trigger)
+
       self.bookRNNInputVars( monAlg, trigger, online=True )
       self.bookRNNInputVars( monAlg, trigger, online=False )
 
@@ -170,3 +173,20 @@ class TrigTauMonAlgBuilder:
     monGroup.defineHistogram('ptRatioEflowApprox', title='ptRatioEflowApprox (1Prong); ptRatioEflowApprox; Events',xbins=50,xmin=0.0,xmax=2.0)
     monGroup.defineHistogram('mEflowApprox', title='mEflowApprox log (1Prong); mEflowApprox_log; Events',xbins=50,xmin=0.,xmax=5.)
     monGroup.defineHistogram('ptDetectorAxis', title='ptDetectorAxis log (1Prong); ptDetectorAxis_log; Events',xbins=50,xmin=0.,xmax=5.)
+
+  def getTrigInfo( self, trigger ):
+
+    class TrigTauInfo(object):
+
+      def __init__(self, trigger):
+        self.__chain = trigger
+
+      def chain(self):
+        return self.__chain
+
+      def isL1Item(self):
+        return True if self.chain().startswith('L1') else False
+
+    return TrigTauInfo(trigger)
+
+

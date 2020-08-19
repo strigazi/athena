@@ -50,6 +50,7 @@ StatusCode TrigTauMonitorAlgorithm::fillHistograms( const EventContext& ctx ) co
     }  
 
     fillDistributions( pairObjs, trigger );                                                                                                           
+    fillDistributions( pairObjs, trigger );
   }
 
     return StatusCode::SUCCESS;
@@ -119,6 +120,7 @@ void TrigTauMonitorAlgorithm::fillDistributions(std::vector< std::pair< const xA
 
 }
 
+
 void TrigTauMonitorAlgorithm::fillRNNInputVars(const std::string trigger, std::vector<const xAOD::TauJet*> tau_vec, bool online) const
 {
   ATH_MSG_DEBUG("Fill RNN input variables: " << trigger);
@@ -168,4 +170,64 @@ void TrigTauMonitorAlgorithm::fillRNNInputVars(const std::string trigger, std::v
 
   fill(monGroup, centFrac,etOverPtLeadTrk,dRmax,absipSigLeadTrk,sumPtTrkFrac,emPOverTrkSysP,ptRatioEflowApprox,mEflowApprox,ptDetectorAxis);
   
+}
+
+void TrigTauMonitorAlgorithm::fillEfficiencies(std::vector< std::pair< const xAOD::TauJet*, const TrigCompositeUtils::Decision * >> pairObjs, std::string trigger) const
+{
+   // here can apply additional selection on top of pair selection in TrigTauMonitorAlgorithm::executeNavigation  
+   fillEfficiency( pairObjs, trigger );
+}
+
+
+void TrigTauMonitorAlgorithm::fillEfficiency( std::vector< std::pair< const xAOD::TauJet*, const TrigCompositeUtils::Decision * >> pairObjs, std::string trigger) const
+{
+   // can pass to this function also additional information we could get in TrigTauMonitorAlgorithm::fillEfficiencies
+    auto monGroup = getGroup( trigger + "_Efficiency" );  
+
+    std::vector<float> pt_vec, eta_vec, avgmu_vec;
+    std::vector<float> match_pt_vec, match_eta_vec, match_avgmu_vec;
+    std::vector<bool>  pt_passed_vec, eta_passed_vec, avgmu_passed_vec;
+
+    auto pt_col     = Monitored::Collection( "pt"     , pt_vec );
+    auto eta_col    = Monitored::Collection( "eta"    , eta_vec ); 
+
+    auto match_pt_col     = Monitored::Collection( "match_pt"     , match_pt_vec );
+    auto match_eta_col    = Monitored::Collection( "match_eta"    , match_eta_vec );
+
+    auto pt_passed_col     = Monitored::Collection( "pt_passed"     , pt_passed_vec );
+    auto eta_passed_col    = Monitored::Collection( "eta_passed"    , eta_passed_vec );
+
+    for( auto pairObj : pairObjs ){
+       const auto *tau = pairObj.first;
+       float pt = tau->pt()/Gaudi::Units::GeV;
+
+       pt_vec.push_back( pt );
+
+      
+
+    }
+
+}
+
+const std::vector<std::string> TrigTauMonitorAlgorithm::m_trigLevel = {"L1Calo","L2Calo","L2","EFCalo","EFTrack","HLT"};
+
+asg::AcceptData TrigTauMonitorAlgorithm::setAccept( const TrigCompositeUtils::Decision *dec, std::string trigger) const {
+
+    ATH_MSG_DEBUG("setAccept");
+
+    asg::AcceptInfo accept;
+    for(const auto& cut:m_trigLevel) accept.addCut(cut,cut);
+    asg::AcceptData acceptData (&accept);    
+
+    bool passedL1Calo=false;
+    bool passedL2Calo=false;
+    bool passedEFCalo=false;
+    bool passedL2=false;
+    bool passedEFTrk=false;
+    bool passedEF=false;    
+
+    //passedL1Calo = m_trigDecTool->ancestorPassed<TrigRoiDescriptorCollection>( dec , trigger , "initialRois");
+
+    return acceptData;    
+
 }

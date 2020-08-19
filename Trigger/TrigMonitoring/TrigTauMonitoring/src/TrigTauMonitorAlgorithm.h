@@ -9,12 +9,17 @@
 #include "xAODTau/TauJet.h"
 #include "xAODTau/TauxAODHelpers.h"
 #include "xAODTau/TauJetContainer.h"
-
+#include "TrigTauInfo.h"
 
 #include "AthenaMonitoring/AthMonitorAlgorithm.h"
 #include "AthenaMonitoringKernel/Monitored.h"
 
 #include "CxxUtils/phihelper.h"
+
+#include "StoreGate/ReadHandleKey.h"
+#include "StoreGate/ReadCondHandleKey.h"
+#include "PATCore/AcceptInfo.h"
+#include "PATCore/AcceptData.h"
 
 class TrigTauMonitorAlgorithm : public AthMonitorAlgorithm {
  public:
@@ -35,6 +40,8 @@ class TrigTauMonitorAlgorithm : public AthMonitorAlgorithm {
   void fillRNNInputVars(const std::string trigger, std::vector<const xAOD::TauJet*> tau_vec, bool online) const;
 
   void fillDistributions(std::vector< std::pair< const xAOD::TauJet*, const TrigCompositeUtils::Decision * >> pairObjs, const std::string trigger) const;
+  void fillEfficiencies( std::vector< std::pair<const xAOD::TauJet*, const TrigCompositeUtils::Decision*> > pairObjs, const std::string trigger) const;
+  void fillEfficiency( std::vector< std::pair<const xAOD::TauJet*, const TrigCompositeUtils::Decision*> > pairObjs, const std::string trigger) const;
 
   inline double dR(const double eta1, const double phi1, const double eta2, const double phi2) const
   {
@@ -52,5 +59,17 @@ class TrigTauMonitorAlgorithm : public AthMonitorAlgorithm {
   SG::ReadHandleKey< xAOD::TauJetContainer> m_hltTauJetCaloOnlyMVAKey { this, "hltTauJetCaloOnlyMVAKey", "HLT_TrigTauRecMerged_CaloOnlyMVA", "HLT taujet container key" };
   SG::ReadHandleKey< xAOD::TauJetContainer> m_hltTauJetCaloOnlyKey { this, "hltTauJetCaloOnlyKey", "HLT_TrigTauRecMerged_CaloOnly", "HLT taujet container key" };
 
+  std::map<std::string,TrigInfo> m_trigInfo;
+  static const std::vector<std::string> m_trigLevel;
+
+protected:
+
+  std::map<std::string,TrigInfo> getTrigInfoMap() { return m_trigInfo; }
+  asg::AcceptData setAccept(const TrigCompositeUtils::Decision*, std::string trigger) const;
+
+  TrigInfo getTrigInfo(const std::string) const;
+
+  //void setTrigInfo(const std::string);
+  
 };
 #endif
