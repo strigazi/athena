@@ -129,6 +129,15 @@ namespace {
       return nullptr;
     }
   }
+
+  template<typename T>
+  std::unique_ptr<T> uclone(const std::unique_ptr<T> & v) {
+    if (v != nullptr) {
+      return std::unique_ptr<T>(v->clone());
+    } else {
+      return nullptr;
+    }
+  }
 }
 
 namespace Trk {
@@ -284,14 +293,14 @@ namespace Trk {
       return nullptr;
     }
 
-    const TrackParameters *parforcalo = firstismuon ? firstidpar : lastidpar;
+    std::unique_ptr<const TrackParameters> parforcalo = uclone(firstismuon ? firstidpar : lastidpar);
     
     if (!cache.m_field_cache.solenoidOn()) {
       const AmgVector(5) & newpars = parforcalo->parameters();
       
-      parforcalo = parforcalo->associatedSurface().createTrackParameters(
+      parforcalo.reset(parforcalo->associatedSurface().createTrackParameters(
         newpars[0], newpars[1], newpars[2], newpars[3], 1 / 5000., nullptr
-      );
+      ));
     }
 
     std::vector < MaterialEffectsOnTrack > calomeots;
@@ -369,18 +378,9 @@ namespace Trk {
         
         if (calomeots.empty()) {
           ATH_MSG_WARNING("No calorimeter material collected, failing fit");
-          
-          if (!cache.m_field_cache.solenoidOn()) {
-            delete parforcalo;
-          }
-          
           return nullptr;
         }
       }
-    }
-    
-    if (!cache.m_field_cache.solenoidOn()) {
-      delete parforcalo;
     }
 
     int nfits = m_fit_status[S_FITS];
@@ -525,7 +525,9 @@ namespace Trk {
     const Track *indettrack = firstismuon ? &intrk2 : &intrk1;
     const Track *muontrack = firstismuon ? &intrk1 : &intrk2;
     
-    auto [firstidpar, lastidpar] = getFirstLastIdPar(*indettrack);
+    auto [tmpfirstidpar, tmplastidpar] = getFirstLastIdPar(*indettrack);
+    std::unique_ptr<const TrackParameters> firstidpar = uclone(tmpfirstidpar);
+    std::unique_ptr<const TrackParameters> lastidpar = uclone(tmplastidpar);
 
     if ((firstidpar == nullptr) || (lastidpar == nullptr)) {
       return nullptr;
@@ -592,7 +594,7 @@ namespace Trk {
       );
     }
     
-    const std::vector<const TrackStateOnSurface *> *matvec = nullptr;
+    std::unique_ptr<const std::vector<const TrackStateOnSurface *>> matvec;
     
     if (tmppar != nullptr) {
       const Surface & associatedSurface = tmppar->associatedSurface();
@@ -630,25 +632,20 @@ namespace Trk {
       }
       
       if (muonsurf != nullptr) {
-        matvec = m_extrapolator->extrapolateM(
+        matvec.reset(m_extrapolator->extrapolateM(
           *tp_closestmuon, 
           *muonsurf, 
           propdir,
           false, 
           muon
-        );
+        ));
       }
     }
 
     std::vector<const TrackStateOnSurface *> tmp_matvec;
 
     if ((matvec != nullptr) && !matvec->empty()) {
-      for (auto & i : tmp_matvec) {
-        delete i;
-      }
-      
       tmp_matvec = std::move(*matvec);
-      delete matvec;
       delete tmp_matvec.back();
       tmp_matvec.pop_back();
       
@@ -713,8 +710,6 @@ namespace Trk {
       if (!firstismuon) {
         std::reverse(tmp_matvec.begin(), tmp_matvec.end());
       }
-    } else {
-      delete matvec;
     }
 
     DataVector<const TrackStateOnSurface>::const_iterator beginStates = intrk1.trackStateOnSurfaces()->begin();
@@ -758,8 +753,7 @@ namespace Trk {
     
     std::unique_ptr<const TrackParameters> firstscatpar;
     std::unique_ptr<const TrackParameters> lastscatpar;
-    const TrackParameters *origlastidpar = lastidpar;
-    const TrackParameters *origfirstidpar = firstidpar;
+    const TrackParameters *origlastidpar = uclone(lastidpar).release();
     
     double newqoverpid = 0;
 
@@ -783,40 +777,32 @@ namespace Trk {
         }
         
         const AmgVector(5) & newpar = firstidpar->parameters();
-        firstidpar = firstidpar->associatedSurface().createTrackParameters(
+        firstidpar.reset(firstidpar->associatedSurface().createTrackParameters(
           newpar[0], newpar[1], newpar[2], newpar[3], newqoverpid, nullptr
-        );
+        ));
       }
       
-      lastidpar = m_extrapolator->extrapolateToVolume(
+      lastidpar.reset(m_extrapolator->extrapolateToVolume(
         *firstidpar,
         *cache.m_caloEntrance,
         alongMomentum, 
         Trk::muon
-      );
+      ));
     }
 
     if (lastidpar == nullptr) {
-      lastidpar = origlastidpar;
+      lastidpar = uclone(origlastidpar);
     }
     
     firstscatpar.reset(m_propagator->propagateParameters(
       ctx,
-      *(firstismuon ? tp_closestmuon.get() : lastidpar),
+      *(firstismuon ? tp_closestmuon.get() : lastidpar.get()),
       calomeots[0].associatedSurface(),
       Trk::alongMomentum, 
       false, 
       trajectory.m_fieldprop,
       Trk::nonInteracting
     ));
-    
-    if (lastidpar != origlastidpar) {
-      delete lastidpar;
-    }
-    
-    if (firstidpar != origfirstidpar) {
-      delete firstidpar;
-    }
 
     if (firstscatpar == nullptr) {
       return nullptr;
@@ -824,7 +810,7 @@ namespace Trk {
     
     lastscatpar.reset(m_propagator->propagateParameters(
       ctx,
-      *(firstismuon ? firstidpar : tp_closestmuon.get()),
+      *(firstismuon ? firstidpar : tp_closestmuon),
       calomeots[2].associatedSurface(),
       Trk::oppositeMomentum, 
       false,
@@ -859,7 +845,7 @@ namespace Trk {
     }
     
     muonscattheta = calosegment.theta() - muonscatpar->parameters()[Trk::theta];
-    std::unique_ptr<const TrackParameters> startPar = uclone(cache.m_idmat ? lastidpar : indettrack->perigeeParameters());
+    std::unique_ptr<const TrackParameters> startPar = uclone(cache.m_idmat ? lastidpar.get() : indettrack->perigeeParameters());
    
     for (int i = 0; i < 2; i++) {
       std::unique_ptr<const TrackParameters> tmpelosspar;
@@ -4034,16 +4020,16 @@ namespace Trk {
       }
     }
 
-    const TrackParameters *refpar = nullptr;
+    std::unique_ptr<const TrackParameters> refpar;
     AmgVector(5) newpars = refpar2->parameters();
     
     if (trajectory.m_straightline && m_p != 0) {
       newpars[Trk::qOverP] = 1 / m_p;
     }
     
-    refpar = refpar2->associatedSurface().createTrackParameters(
+    refpar.reset(refpar2->associatedSurface().createTrackParameters(
       newpars[0], newpars[1], newpars[2], newpars[3], newpars[4], nullptr
-    );
+    ));
 
     if (firstmatpar != nullptr) {
       startmatpar1 = uclone(firstsiliconpar);
@@ -4283,8 +4269,6 @@ namespace Trk {
 
       if (calomeots.empty()) {
         ATH_MSG_WARNING("No material layers collected in calorimeter");
-        
-        delete refpar;
         return;
       }
 
@@ -4760,7 +4744,6 @@ namespace Trk {
 
     ATH_MSG_DEBUG("Total X0: " << trajectory.totalX0() << " total eloss: " << trajectory.totalEnergyLoss());
 
-    delete refpar;
     if (matvec_used) cache.m_matTempStore.push_back( std::move(matvec) );
  }
 
@@ -4934,7 +4917,7 @@ namespace Trk {
       }
 
       PerigeeSurface persurf(vertex);
-      const TrackParameters *nearestpar = nullptr;
+      std::unique_ptr<const TrackParameters> nearestpar;
       double mindist = 99999;
       std::vector < GXFTrackState * >mymatvec;
 
@@ -4968,7 +4951,7 @@ namespace Trk {
           double dist = ((*it).trackParameters()->position() - vertex).perp();
           if (dist < mindist) {
             mindist = dist;
-            nearestpar = (*it).trackParameters();
+            nearestpar = uclone((*it).trackParameters());
             mymatvec.clear();
             continue;
           }
@@ -4980,7 +4963,7 @@ namespace Trk {
       }
       
       if (nearestpar == nullptr) {
-        nearestpar = &param;
+        nearestpar = uclone(&param);
       }
 
       for (int i = 0; i < (int) mymatvec.size(); i++) {
@@ -4995,7 +4978,7 @@ namespace Trk {
           propdir = oppositeMomentum;
         }
         
-        const TrackParameters *tmppar = m_propagator->propagateParameters(
+        std::unique_ptr<const TrackParameters> tmppar(m_propagator->propagateParameters(
           ctx,
           *nearestpar, 
           *matsurf, 
@@ -5003,11 +4986,11 @@ namespace Trk {
           false,
           trajectory.m_fieldprop,
           Trk::nonInteracting
-        );
+        ));
         
         if (tmppar == nullptr) {
           propdir = (propdir == oppositeMomentum) ? alongMomentum : oppositeMomentum;
-          tmppar = m_propagator->propagateParameters(
+          tmppar.reset(m_propagator->propagateParameters(
             ctx,
             *nearestpar, 
             *matsurf, 
@@ -5015,13 +4998,9 @@ namespace Trk {
             false, 
             trajectory.m_fieldprop,
             Trk::nonInteracting
-          );
+          ));
           
           if (tmppar == nullptr) {
-            if (i != 0) {
-              delete nearestpar;
-            }
-            
             cache.m_fittercode = FitterStatusCode::ExtrapolationFailure;
             incrementFitStatus(S_PROPAGATION_FAIL);
 
@@ -5029,10 +5008,6 @@ namespace Trk {
 
             return nullptr;
           }
-        }
-        
-        if (i != 0) {
-          delete nearestpar;
         }
 
         AmgVector(5) newpars = tmppar->parameters();
@@ -5049,11 +5024,9 @@ namespace Trk {
           }
         }
         
-        nearestpar = tmppar->associatedSurface().createTrackParameters(
+        nearestpar.reset(tmppar->associatedSurface().createTrackParameters(
           newpars[0], newpars[1], newpars[2], newpars[3], newpars[4], nullptr
-        );
-        
-        delete tmppar;
+        ));
       }
       
       const Trk::TrackParameters * tmpPars = m_propagator->propagateParameters(
@@ -5069,10 +5042,6 @@ namespace Trk {
       // Parameters are at a Perigee surface so they are perigee parameters
       if (tmpPars != nullptr) {
         per.reset(static_cast < const Perigee *>(tmpPars));
-      }
-
-      if (!mymatvec.empty()) {
-        delete nearestpar;
       }
       
       if ((per != nullptr) && (matEffects == Trk::proton || matEffects == Trk::kaon)) {
