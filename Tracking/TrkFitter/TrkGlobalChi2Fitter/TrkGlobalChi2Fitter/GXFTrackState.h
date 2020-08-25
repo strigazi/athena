@@ -32,8 +32,8 @@ namespace Trk {
     GXFTrackState(GXFTrackState &);
 
     GXFTrackState(std::unique_ptr<const MeasurementBase>, std::unique_ptr<const TrackParameters>);
-    GXFTrackState(const TrackParameters *, TrackState::TrackStateType = TrackState::Hole);
-    GXFTrackState(GXFMaterialEffects *, const TrackParameters * trackpar);
+    GXFTrackState(std::unique_ptr<const TrackParameters>, TrackState::TrackStateType = TrackState::Hole);
+    GXFTrackState(std::unique_ptr<GXFMaterialEffects>, std::unique_ptr<const TrackParameters>);
     GXFTrackState & operator=(GXFTrackState &) = delete;
 
     void setMeasurement(std::unique_ptr<const MeasurementBase>);
