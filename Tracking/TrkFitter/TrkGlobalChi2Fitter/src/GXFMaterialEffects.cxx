@@ -233,28 +233,26 @@ namespace Trk {
     m_surf = surf;
   }
 
-  MaterialEffectsBase *GXFMaterialEffects::makeMEOT() {
-    ScatteringAngles *scatangles = nullptr;
+  std::unique_ptr<MaterialEffectsBase> GXFMaterialEffects::makeMEOT() {
+    std::unique_ptr<ScatteringAngles> scatangles;
 
     if (m_sigmascattheta != 0) {
-      scatangles = new ScatteringAngles(m_scatphi, m_scattheta, m_sigmascatphi, m_sigmascattheta);
+      scatangles = std::make_unique<ScatteringAngles>(m_scatphi, m_scattheta, m_sigmascatphi, m_sigmascattheta);
     }
     
     std::bitset<MaterialEffectsBase::NumberOfMaterialEffectsTypes> typePattern;
     typePattern.set(MaterialEffectsBase::FittedMaterialEffects);
-    const Trk::EnergyLoss * neweloss = nullptr;
+    std::unique_ptr<const Trk::EnergyLoss> neweloss;
     
     if (m_deltae != 0) {
       if (m_eloss != nullptr) {
-        neweloss = m_eloss->clone();
+        neweloss.reset(m_eloss->clone());
       } else {
-        neweloss = new Trk::EnergyLoss(m_deltae, m_sigmadeltae, m_sigmadeltaeneg, m_sigmadeltaepos);
+        neweloss = std::make_unique<Trk::EnergyLoss>(m_deltae, m_sigmadeltae, m_sigmadeltaeneg, m_sigmadeltaepos);
       }
     }
     
-    MaterialEffectsOnTrack *meot = new MaterialEffectsOnTrack(m_x0, scatangles, neweloss, *m_surf, typePattern);
-
-    return meot;
+    return std::make_unique<MaterialEffectsOnTrack>(m_x0, scatangles.release(), neweloss.release(), *m_surf, typePattern);
   }
 
   const Trk::MaterialProperties * GXFMaterialEffects::materialProperties() const {

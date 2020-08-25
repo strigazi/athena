@@ -58,7 +58,7 @@ namespace Trk {
     bool isMeasuredEloss() const;
     const Surface *surface() const;
     void setSurface(const Surface *);
-    MaterialEffectsBase *makeMEOT();
+    std::unique_ptr<MaterialEffectsBase> makeMEOT();
     const MaterialProperties *materialProperties() const;
     void setMaterialProperties(const MaterialProperties *);
 

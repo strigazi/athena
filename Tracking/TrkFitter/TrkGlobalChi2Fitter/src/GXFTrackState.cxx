@@ -23,7 +23,7 @@ namespace Trk {
     m_measurement(rhs.m_measurement != nullptr ? std::unique_ptr<const MeasurementBase>(rhs.m_measurement->clone()) : nullptr), 
     m_tsType(rhs.m_tsType), 
     m_trackpar(std::unique_ptr<const TrackParameters>(rhs.m_trackpar != nullptr ? rhs.m_trackpar->clone() : nullptr)),
-    m_materialEffects(std::unique_ptr<GXFMaterialEffects>(rhs.m_materialEffects != nullptr ? new GXFMaterialEffects(*rhs. m_materialEffects) : nullptr)),
+    m_materialEffects(rhs.m_materialEffects != nullptr ? std::make_unique<GXFMaterialEffects>(*rhs. m_materialEffects) : nullptr),
     m_derivs(rhs.m_derivs),
     m_covariancematrix(rhs.m_covariancematrix),
     m_covariance_set(rhs.m_covariance_set),
