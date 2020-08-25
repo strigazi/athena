@@ -471,9 +471,8 @@ namespace Trk {
       const ParticleHypothesis
     ) const;
 
-    TrackStateOnSurface *makeTSOS(
-      GXFTrackState *,
-      const ParticleHypothesis
+    std::unique_ptr<TrackStateOnSurface> makeTSOS(
+      GXFTrackState &
     ) const;
 
     void fillResiduals(

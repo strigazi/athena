@@ -7009,21 +7009,21 @@ namespace Trk {
     return oldtrajectory;
   }
 
-  TrackStateOnSurface *GlobalChi2Fitter::makeTSOS(GXFTrackState * state,
-                                                  ParticleHypothesis
-                                                  matEffects) const {
+  std::unique_ptr<TrackStateOnSurface> GlobalChi2Fitter::makeTSOS(
+    GXFTrackState & state
+  ) const {
     // Convert internal track state into "official" TrackStateOnSurface
-    const TrackParameters *trackpar = state->trackParameters() != nullptr ? state->takeTrackParameters()->clone() : nullptr;   
-    const MeasurementBase *measurement = state->measurement() != nullptr ? state->takeMeasurement()->clone() : nullptr;
-    std::unique_ptr<const FitQualityOnSurface> fitQual(state->fitQuality() != nullptr ? state->takeFitQuality()->clone() : nullptr);
+    std::unique_ptr<const TrackParameters> trackpar = uclone(state.trackParameters());
+    std::unique_ptr<const MeasurementBase> measurement = uclone(state.measurement());
+    std::unique_ptr<const FitQualityOnSurface> fitQual = uclone(state.fitQuality());
 
-    GXFMaterialEffects *gxfmeff = state->materialEffects();
+    GXFMaterialEffects *gxfmeff = state.materialEffects();
     std::unique_ptr<const MaterialEffectsBase> mateff = nullptr;
-    TrackState::TrackStateType tstype = state->trackStateType();
+    TrackState::TrackStateType tstype = state.trackStateType();
     std::bitset<TrackStateOnSurface::NumberOfTrackStateOnSurfaceTypes> typePattern;
 
-    if (state->hasTrackCovariance()) {
-      state->setTrackCovariance(nullptr);
+    if (state.hasTrackCovariance()) {
+      state.setTrackCovariance(nullptr);
     }
     
     if ((gxfmeff != nullptr) && (tstype == TrackState::Scatterer || tstype == TrackState::Brem)) {
@@ -7036,22 +7036,11 @@ namespace Trk {
           typePattern.set(TrackStateOnSurface::CaloDeposit);
         } else {
           typePattern.set(TrackStateOnSurface::BremPoint);
-          if (false) {
-            double pafter = std::abs(1 / trackpar->parameters()[Trk::qOverP]);
-            double pbefore = std::abs(1 / (trackpar->parameters()[Trk::qOverP] - .001 * gxfmeff->delta_p()));
-            double mass = m_particleMasses.mass[matEffects];
-            double eafter = sqrt(pafter * pafter + mass * mass);
-            double ebefore = sqrt(pbefore * pbefore + mass * mass);
-            double z = eafter / ebefore;
-            double beta = pbefore / ebefore;
-            double sigqoverp = gxfmeff->sigmaDeltaE() / (beta * beta * pbefore * pbefore);
-            mateff = std::make_unique<EstimatedBremOnTrack>(gxfmeff->x0(), z, 0, sigqoverp * sigqoverp, trackpar->associatedSurface());
-          }
         }
       }
       
       if (mateff == nullptr) {
-        mateff = state->materialEffects()->makeMEOT();
+        mateff = state.materialEffects()->makeMEOT();
       }
     } else {
       if (tstype == TrackState::Fittable) {
@@ -7076,7 +7065,7 @@ namespace Trk {
       }
     }
 
-    return new TrackStateOnSurface(measurement, trackpar, fitQual.release(), mateff.release(), typePattern);
+    return std::make_unique<TrackStateOnSurface>(measurement.release(), trackpar.release(), fitQual.release(), mateff.release(), typePattern);
   }
 
   void GlobalChi2Fitter::makeTrackFillDerivativeMatrix(
@@ -7332,8 +7321,8 @@ namespace Trk {
         continue;
       }
       
-      const TrackStateOnSurface *trackState = makeTSOS(hit.get(), matEffects);
-      trajectory->push_back(trackState);
+      std::unique_ptr<const TrackStateOnSurface> trackState = makeTSOS(*hit);
+      trajectory->push_back(trackState.release());
     }
 
     std::unique_ptr<const FitQuality> qual = std::make_unique<const FitQuality>(oldtrajectory.chi2(), oldtrajectory.nDOF());

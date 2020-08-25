@@ -115,9 +115,9 @@ namespace Trk {
   const MeasurementBase *GXFTrackState::measurement(void) {
     return m_measurement.get();
   }  
-  
-  const MeasurementBase *GXFTrackState::takeMeasurement(void) {
-    return m_measurement.get();
+
+  std::unique_ptr<const MeasurementBase> GXFTrackState::takeMeasurement(void) {
+    return std::move(m_measurement);
   }
 
   void GXFTrackState::setTrackParameters(std::unique_ptr<const TrackParameters> par) {
@@ -191,8 +191,8 @@ namespace Trk {
     return m_fitqual.get();
   }
   
-  const FitQualityOnSurface *GXFTrackState::takeFitQuality(void) {
-    return m_fitqual.get();
+  std::unique_ptr<const FitQualityOnSurface> GXFTrackState::takeFitQuality(void) {
+    return std::move(m_fitqual);
   }
 
   int

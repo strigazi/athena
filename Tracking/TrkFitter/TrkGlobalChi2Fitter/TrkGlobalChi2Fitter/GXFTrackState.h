@@ -38,14 +38,14 @@ namespace Trk {
 
     void setMeasurement(std::unique_ptr<const MeasurementBase>);
     const MeasurementBase *measurement(void);
-    const MeasurementBase *takeMeasurement(void);
+    std::unique_ptr<const MeasurementBase> takeMeasurement(void);
 
     TrackState::TrackStateType trackStateType();
     void setTrackStateType(TrackState::TrackStateType);
     
     void setTrackParameters(std::unique_ptr<const TrackParameters>);
     const TrackParameters *trackParameters(void);
-    const TrackParameters *takeTrackParameters(void);
+    std::unique_ptr<const TrackParameters> takeTrackParameters(void);
     
     GXFMaterialEffects *materialEffects();
     const Surface *surface() const;
@@ -61,7 +61,7 @@ namespace Trk {
 
     void setFitQuality(std::unique_ptr<const FitQualityOnSurface>);
     const FitQualityOnSurface *fitQuality(void);
-    const FitQualityOnSurface *takeFitQuality(void);
+    std::unique_ptr<const FitQualityOnSurface> takeFitQuality(void);
 
     TrackState::MeasurementType measurementType();
     void setMeasurementType(TrackState::MeasurementType);
@@ -123,8 +123,8 @@ namespace Trk {
     return m_trackpar.get();
   }
   
-  inline const TrackParameters *GXFTrackState::takeTrackParameters(void) {
-    return m_trackpar.get();
+  inline std::unique_ptr<const TrackParameters> GXFTrackState::takeTrackParameters(void) {
+    return std::move(m_trackpar);
   }
 
   inline GXFMaterialEffects *GXFTrackState::materialEffects() {
