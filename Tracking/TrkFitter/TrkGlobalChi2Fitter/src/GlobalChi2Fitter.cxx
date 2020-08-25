@@ -320,7 +320,7 @@ namespace Trk {
       return nullptr;
     }
 
-    Track *track = nullptr;
+    std::unique_ptr<Track> track;
 
     bool tmp = m_calomat;
     cache.m_calomat = false;
@@ -409,7 +409,7 @@ namespace Trk {
         qoverpid * qoverpmuon > 0
       )
     ) {
-      track = mainCombinationStrategy(ctx,cache, intrk1, intrk2, trajectory, calomeots);
+      track.reset(mainCombinationStrategy(ctx,cache, intrk1, intrk2, trajectory, calomeots));
       
       if (m_fit_status[S_FITS] == (unsigned int) (nfits + 1)) {
         firstfitwasattempted = true;
@@ -426,7 +426,7 @@ namespace Trk {
       trajectory2.m_straightline = trajectory.m_straightline;
       trajectory2.m_fieldprop = trajectory.m_fieldprop;
       trajectory = trajectory2;
-      track = backupCombinationStrategy(ctx,cache, intrk1, intrk2, trajectory, calomeots);
+      track.reset(backupCombinationStrategy(ctx,cache, intrk1, intrk2, trajectory, calomeots));
     }
 
     bool pseudoupdated = false;
@@ -449,11 +449,11 @@ namespace Trk {
         }
         
         const TrackParameters *pseudopar = pseudostate->trackParameters();
-        const TrackParameters *updpar = m_updator->removeFromState(
+        std::unique_ptr<const TrackParameters> updpar(m_updator->removeFromState(
           *pseudopar,
           pseudostate->measurement()->localParameters(),
           pseudostate->measurement()->localCovariance()
-        );
+        ));
         
         if (updpar == nullptr) {
           continue;
@@ -470,7 +470,6 @@ namespace Trk {
           pseudopar->associatedSurface()
         );
         
-        delete updpar;
         pseudostate->setMeasurement(std::move(newpseudo));
         double errors[5];
         errors[0] = errors[2] = errors[3] = errors[4] = -1;
@@ -480,21 +479,19 @@ namespace Trk {
       }
       
       if (pseudoupdated) {
-        Track *oldtrack = track;
         trajectory.setConverged(false);
         cache.m_matfilled = true;
         
-        track = myfit(
+        track.reset(myfit(
           ctx,
           cache, 
           trajectory, 
-          *oldtrack->perigeeParameters(), 
+          *track->perigeeParameters(), 
           false,
           (cache.m_field_cache.toroidOn() || cache.m_field_cache.solenoidOn()) ? muon : nonInteracting
-        );
+        ));
         
         cache.m_matfilled = false;
-        delete oldtrack;
       }
     }
 
@@ -509,7 +506,7 @@ namespace Trk {
     cache.m_calomat = tmp;
     cache.m_extmat = tmp2;
     cache.m_idmat = tmp4;
-    return std::unique_ptr<Track>(track);
+    return std::move(track);
   }
 
   Track *GlobalChi2Fitter::mainCombinationStrategy(
@@ -544,7 +541,7 @@ namespace Trk {
     }
     
     const MeasurementBase *closestmuonmeas = nullptr;
-    const TrackParameters *tp_closestmuon = nullptr;
+    std::unique_ptr<const TrackParameters> tp_closestmuon = nullptr;
 
     while (closestmuonmeas == nullptr) {
       closestmuonmeas = nullptr;
@@ -555,9 +552,9 @@ namespace Trk {
         
         if (thispar != nullptr) {
           const AmgVector(5) & parvec = thispar->parameters();
-          tp_closestmuon = thispar->associatedSurface().createTrackParameters(
+          tp_closestmuon.reset(thispar->associatedSurface().createTrackParameters(
             parvec[0], parvec[1], parvec[2], parvec[3], parvec[4], nullptr
-          );
+          ));
         }
         break;
       }
@@ -691,7 +688,6 @@ namespace Trk {
           );
         }
         
-        delete tp_closestmuon;
         if (tmppar == nullptr) {
           return nullptr;
         }
@@ -709,9 +705,9 @@ namespace Trk {
           }
         }
         
-        tp_closestmuon = tmppar->associatedSurface().createTrackParameters(
+        tp_closestmuon.reset(tmppar->associatedSurface().createTrackParameters(
           newpars[0], newpars[1], newpars[2], newpars[3], newpars[4], nullptr
-        );
+        ));
       }
       
       if (!firstismuon) {
@@ -806,7 +802,7 @@ namespace Trk {
     
     firstscatpar = m_propagator->propagateParameters(
       ctx,
-      *(firstismuon ? tp_closestmuon : lastidpar),
+      *(firstismuon ? tp_closestmuon.get() : lastidpar),
       calomeots[0].associatedSurface(),
       Trk::alongMomentum, 
       false, 
@@ -823,13 +819,12 @@ namespace Trk {
     }
 
     if (firstscatpar == nullptr) {
-      delete tp_closestmuon;
       return nullptr;
     }
     
     lastscatpar = m_propagator->propagateParameters(
       ctx,
-      *(firstismuon ? firstidpar : tp_closestmuon),
+      *(firstismuon ? firstidpar : tp_closestmuon.get()),
       calomeots[2].associatedSurface(),
       Trk::oppositeMomentum, 
       false,
@@ -838,7 +833,6 @@ namespace Trk {
     );
 
     if (lastscatpar == nullptr) {
-      delete tp_closestmuon;
       delete firstscatpar;
       return nullptr;
     }
@@ -866,7 +860,7 @@ namespace Trk {
     }
     
     muonscattheta = calosegment.theta() - muonscatpar->parameters()[Trk::theta];
-    const TrackParameters *startPar = cache.m_idmat ? lastidpar : indettrack->perigeeParameters();
+    std::unique_ptr<const TrackParameters> startPar = uclone(cache.m_idmat ? lastidpar : indettrack->perigeeParameters());
    
     for (int i = 0; i < 2; i++) {
       const TrackParameters *tmpelosspar = nullptr;
@@ -875,7 +869,6 @@ namespace Trk {
       params1[Trk::theta] += muonscattheta;
 
       if (!correctAngles(params1[Trk::phi], params1[Trk::theta])) {
-        delete tp_closestmuon;
         delete firstscatpar;
         delete lastscatpar;
         return nullptr;
@@ -913,7 +906,6 @@ namespace Trk {
       delete tmppar1;
 
       if ((tmpelosspar == nullptr) || (jac1 == nullptr)) {
-        delete tp_closestmuon;
         delete firstscatpar;
         delete lastscatpar;
         if (tmpelosspar != elosspar.get()) {
@@ -970,7 +962,6 @@ namespace Trk {
       delete elosspar2;
       if ((scat2 == nullptr) || (jac2 == nullptr)) {
         delete scat2;
-        delete tp_closestmuon;
         delete firstscatpar;
         delete lastscatpar;
         return nullptr;
@@ -1067,7 +1058,6 @@ namespace Trk {
 
         if (!correctAngles(params2[Trk::phi], params2[Trk::theta])) {
           delete scat2;
-          delete tp_closestmuon;
           delete firstscatpar;
           delete lastscatpar;
           return nullptr;
@@ -1080,12 +1070,12 @@ namespace Trk {
         delete idscatpar;
         idscatpar = firstscatpar = tmpidpar;
 
-        startPar = m_extrapolator->extrapolateToVolume(
+        startPar.reset(m_extrapolator->extrapolateToVolume(
           *idscatpar,
           *cache.m_caloEntrance,
           oppositeMomentum,
           Trk::nonInteracting
-        );
+        ));
         
         if (startPar != nullptr) {
           Amg::Vector3D trackdir = startPar->momentum().unit();
@@ -1111,8 +1101,7 @@ namespace Trk {
           );
           
           if (curvlinpar != nullptr) {
-            delete startPar;
-            startPar = curvlinpar;
+            startPar.reset(curvlinpar);
           }
         }
         
@@ -1122,8 +1111,6 @@ namespace Trk {
         delete scat2;
       }
     }
-
-    delete tp_closestmuon;
 
     std::unique_ptr<GXFMaterialEffects> firstscatmeff = std::make_unique<GXFMaterialEffects>(&calomeots[0]);
     std::unique_ptr<GXFMaterialEffects> elossmeff = std::make_unique<GXFMaterialEffects>(&calomeots[1]);
@@ -1169,9 +1156,6 @@ namespace Trk {
       (pull1 > 5 || pull2 > 5) &&
       (pull1 > 25 || pull2 > 25 || closestmuonmeas->associatedSurface().type() == Trk::Surface::Line)
     ) {
-      if (startPar != lastidpar && startPar != indettrack->perigeeParameters()) {
-        delete startPar;
-      }
       return nullptr;
     }
 
@@ -1193,13 +1177,6 @@ namespace Trk {
             std::abs(mefot->energyLoss()->deltaE()) > 250 && 
             mefot->energyLoss()->sigmaDeltaE() < 1.e-9
           ) {
-            if (
-              startPar != lastidpar && 
-              startPar != indettrack->perigeeParameters()
-            ) {
-              delete startPar;
-            }
-            
             return nullptr;
           }
           
@@ -1269,10 +1246,6 @@ namespace Trk {
       false,
       (cache.m_field_cache.toroidOn() || cache.m_field_cache.solenoidOn()) ?  muon : nonInteracting
     );
-    
-    if (startPar != lastidpar && startPar != indettrack->perigeeParameters()) {
-      delete startPar;
-    }
     
     return track;
   }
