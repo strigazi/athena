@@ -5690,7 +5690,7 @@ namespace Trk {
             if (std::abs(newres / newerr) < std::abs(res[nmeas - nbrem + bremno] / error[nmeas - nbrem + bremno])) {
               ATH_MSG_DEBUG("Changing from measured to parametrized energy loss");
               
-              state->materialEffects()->setEloss(calomeots[1].energyLoss()->clone());
+              state->materialEffects()->setEloss(std::unique_ptr<EnergyLoss>(calomeots[1].energyLoss()->clone()));
               state->materialEffects()->setSigmaDeltaE(calomeots[1].energyLoss()->sigmaDeltaE());
               res[nmeas - nbrem + bremno] = newres;
               error[nmeas - nbrem + bremno] = newerr;

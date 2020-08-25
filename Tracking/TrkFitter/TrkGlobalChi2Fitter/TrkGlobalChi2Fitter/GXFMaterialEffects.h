@@ -5,6 +5,10 @@
 #ifndef TRKGXFMATERIALEFFECTS_H
 #define TRKGXFMATERIALEFFECTS_H
 
+#include "TrkMaterialOnTrack/EnergyLoss.h"
+
+#include <memory>
+
 namespace Trk {
   class MaterialEffectsOnTrack;
   class MaterialEffectsBase;
@@ -24,7 +28,6 @@ namespace Trk {
     GXFMaterialEffects();
     GXFMaterialEffects(const MaterialEffectsOnTrack *);
     GXFMaterialEffects(GXFMaterialEffects &);
-    ~GXFMaterialEffects();
     GXFMaterialEffects & operator=(GXFMaterialEffects & rhs);
 
     void setScatteringAngles(double, double);
@@ -38,7 +41,7 @@ namespace Trk {
     double sigmaDeltaPhi() const;
     double sigmaDeltaTheta() const;
     double deltaE() const;
-    void setEloss(EnergyLoss *);
+    void setEloss(std::unique_ptr<EnergyLoss>);
     double sigmaDeltaE() const;
     double sigmaDeltaEPos() const;
     double sigmaDeltaENeg() const;
@@ -70,12 +73,11 @@ namespace Trk {
     double m_sigmadeltae;
     double m_sigmadeltaepos;
     double m_sigmadeltaeneg;
-    const EnergyLoss *m_eloss;
+    std::unique_ptr<const EnergyLoss> m_eloss;
     const Surface *m_surf;
     const MaterialProperties *m_matprop;
     bool m_iskink;
     bool m_ismeasuredeloss;
-    bool m_owneloss;
     double m_measscatphi; // fudge to stabilize fit in muon system
     double m_sintheta;
   };
