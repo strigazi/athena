@@ -27,7 +27,6 @@ namespace Trk {
   public:
     GXFTrajectory();
     GXFTrajectory(GXFTrajectory & rhs);
-    ~GXFTrajectory();
     GXFTrajectory & operator=(GXFTrajectory & rhs);
 
     bool addMeasurementState(GXFTrackState *, int index = -1);

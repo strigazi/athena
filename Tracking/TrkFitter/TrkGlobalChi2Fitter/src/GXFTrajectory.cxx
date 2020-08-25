@@ -99,12 +99,6 @@ namespace Trk {
     m_upstreammat = rhs.m_upstreammat;
   }
 
-  GXFTrajectory::~GXFTrajectory() {
-    for (auto & state : m_states) {
-      delete state;
-    }
-  }
-
   GXFTrajectory & GXFTrajectory::operator =(GXFTrajectory & rhs) {
     if (this != &rhs) {
       m_straightline = rhs.m_straightline;
@@ -130,9 +124,6 @@ namespace Trk {
       m_prefit = rhs.m_prefit;
       m_refpar.reset(rhs.m_refpar != nullptr ? rhs.m_refpar->clone() : nullptr);
       
-      for (auto & state : m_states) {
-        delete state;
-      }
       
       m_states = rhs.m_states;
       
@@ -178,7 +169,6 @@ namespace Trk {
         meas->localParameters().parameterKey() == meas2->localParameters().parameterKey() && 
         state->measurementType() != TrackState::MM
       ) {
-        delete state;
         return false;
       }
     }
