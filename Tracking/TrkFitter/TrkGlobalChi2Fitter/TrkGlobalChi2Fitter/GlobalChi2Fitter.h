@@ -438,7 +438,7 @@ namespace Trk {
       ParticleHypothesis
     ) const;
 
-    const TrackParameters *makePerigee(
+    std::unique_ptr<const TrackParameters> makePerigee(
       Cache &,
       const TrackParameters &,
       const ParticleHypothesis

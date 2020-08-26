@@ -4746,7 +4746,7 @@ namespace Trk {
     if (matvec_used) cache.m_matTempStore.push_back( std::move(matvec) );
  }
 
-  const TrackParameters *GlobalChi2Fitter::makePerigee(
+  std::unique_ptr<const TrackParameters> GlobalChi2Fitter::makePerigee(
     Cache & cache,
     const TrackParameters & param,
     ParticleHypothesis matEffects
@@ -4755,16 +4755,12 @@ namespace Trk {
     
     if (param.associatedSurface().type() == Trk::Surface::Perigee)
       persurf = static_cast<const PerigeeSurface *>(&param.associatedSurface());
-      
-    const TrackParameters *per = nullptr;
 
     if ((persurf != nullptr) && (!cache.m_acceleration || persurf->center().perp() > 5)) {
       const AmgVector(5) & pars = param.parameters();
-      const TrackParameters *newper = param.associatedSurface().createTrackParameters(
+      return std::unique_ptr<const TrackParameters>(param.associatedSurface().createTrackParameters(
         pars[0], pars[1], pars[2], pars[3], pars[4], nullptr
-      );
-      
-      return newper;
+      ));
     }
     
     if (cache.m_acceleration) {
@@ -4772,14 +4768,16 @@ namespace Trk {
     }
     
     PerigeeSurface tmppersf;
-    per = m_extrapolator->extrapolate(param, tmppersf, oppositeMomentum, false, matEffects);
+    std::unique_ptr<const TrackParameters> per(
+      m_extrapolator->extrapolate(param, tmppersf, oppositeMomentum, false, matEffects)
+    );
     
     if (per == nullptr) {
       ATH_MSG_DEBUG("Cannot make Perigee with starting parameters");
       return nullptr;
     }
     
-    return per;
+    return std::move(per);
   }
 
   Track *GlobalChi2Fitter::myfit(
@@ -4842,7 +4840,7 @@ namespace Trk {
 
     ATH_MSG_DEBUG("start param: " << param << " pos: " << param.position() << " pt: " << param.pT());
 
-    std::unique_ptr<const TrackParameters> per(makePerigee(cache, param, matEffects));
+    std::unique_ptr<const TrackParameters> per = makePerigee(cache, param, matEffects);
 
     if (!cache.m_acceleration && (per == nullptr)) {
       cache.m_fittercode = FitterStatusCode::ExtrapolationFailure;
@@ -5028,7 +5026,7 @@ namespace Trk {
         ));
       }
       
-      const Trk::TrackParameters * tmpPars = m_propagator->propagateParameters(
+      std::unique_ptr<const Trk::TrackParameters> tmpPars(m_propagator->propagateParameters(
         ctx,
         *nearestpar, 
         persurf,
@@ -5036,11 +5034,11 @@ namespace Trk {
         false,
         trajectory.m_fieldprop,
         Trk::nonInteracting
-      );
+      ));
 
       // Parameters are at a Perigee surface so they are perigee parameters
       if (tmpPars != nullptr) {
-        per.reset(static_cast < const Perigee *>(tmpPars));
+        per.reset(static_cast < const Perigee *>(tmpPars.release()));
       }
       
       if ((per != nullptr) && (matEffects == Trk::proton || matEffects == Trk::kaon)) {
@@ -5074,7 +5072,7 @@ namespace Trk {
         nullptr
       ));
     } else if (per == nullptr) {
-      per.reset(makePerigee(cache, param, matEffects));
+      per = makePerigee(cache, param, matEffects);
     }
     
     if ((per == nullptr) && (trajectory.referenceParameters() == nullptr)) {
