@@ -272,9 +272,8 @@ namespace Trk {
       Cache &,
       GXFTrajectory &,
       const TrackStateOnSurface *,
-      int index = -1,
-      bool copytp = false
-    ) const;
+      int index = -1
+     ) const;
 
     void makeProtoStateFromMeasurement(
       Cache &,

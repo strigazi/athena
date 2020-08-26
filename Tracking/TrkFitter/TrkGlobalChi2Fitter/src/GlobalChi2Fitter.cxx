@@ -1084,7 +1084,7 @@ namespace Trk {
 
     if (firstismuon) {
       for (auto & i : tmp_matvec) {
-        makeProtoState(cache, trajectory, i, -1, true);
+        makeProtoState(cache, trajectory, i, -1);
       }
     }
 
@@ -1105,7 +1105,7 @@ namespace Trk {
 
     if (!firstismuon) {
       for (auto & i : tmp_matvec) {
-        makeProtoState(cache, trajectory, i, -1, true);
+        makeProtoState(cache, trajectory, i, -1);
       }
     }
 
@@ -2651,8 +2651,7 @@ namespace Trk {
     Cache & cache,
     GXFTrajectory & trajectory,
     const TrackStateOnSurface * tsos,
-    int index, 
-    bool copytp
+    int index
   ) const {
     if (
       (
