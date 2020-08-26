@@ -1138,9 +1138,9 @@ namespace Trk {
 
     elossmeff->setSigmaDeltaE(calomeots[1].energyLoss()->sigmaDeltaE());
 
-    trajectory.addMaterialState(new GXFTrackState(firstscatmeff, firstscatpar), -1);
-    trajectory.addMaterialState(new GXFTrackState(elossmeff, elosspar.release()), -1);
-    trajectory.addMaterialState(new GXFTrackState(secondscatmeff, lastscatpar), -1);
+    trajectory.addMaterialState(std::make_unique<GXFTrackState>(firstscatmeff, firstscatpar), -1);
+    trajectory.addMaterialState(std::make_unique<GXFTrackState>(elossmeff, elosspar.release()), -1);
+    trajectory.addMaterialState(std::make_unique<GXFTrackState>(secondscatmeff, lastscatpar), -1);
 
     if (!firstismuon) {
       for (auto & i : tmp_matvec) {
@@ -1225,7 +1225,7 @@ namespace Trk {
           pseudopar->associatedSurface()
         );
         
-        GXFTrackState *pseudostate = new GXFTrackState(std::move(newpseudo), std::move(pseudopar));
+        std::unique_ptr<GXFTrackState> pseudostate = std::make_unique<GXFTrackState>(std::move(newpseudo), std::move(pseudopar));
         pseudostate->setMeasurementType(TrackState::Pseudo);
         
         double errors[5];
@@ -1233,7 +1233,7 @@ namespace Trk {
         errors[1] = 10;
         
         pseudostate->setMeasurementErrors(errors);
-        trajectory.addMeasurementState(pseudostate);
+        trajectory.addMeasurementState(std::move(pseudostate));
         ispseudo = true;
         ATH_MSG_DEBUG("Adding pseudomeasurement");
       }
@@ -1513,9 +1513,9 @@ namespace Trk {
     dp = 1000 * (lastscatpar->parameters()[Trk::qOverP] - firstscatpar->parameters()[Trk::qOverP]);
     elossmeff->setdelta_p(dp);
     
-    trajectory.addMaterialState(new GXFTrackState(firstscatmeff.release(), firstscatpar.release()), -1);
-    trajectory.addMaterialState(new GXFTrackState(elossmeff.release(), elosspar.release()), -1);
-    trajectory.addMaterialState(new GXFTrackState(secondscatmeff.release(), lastscatpar.release()), -1);
+    trajectory.addMaterialState(std::make_unique<GXFTrackState>(firstscatmeff.release(), firstscatpar.release()), -1);
+    trajectory.addMaterialState(std::make_unique<GXFTrackState>(elossmeff.release(), elosspar.release()), -1);
+    trajectory.addMaterialState(std::make_unique<GXFTrackState>(secondscatmeff.release(), lastscatpar.release()), -1);
     
     GXFTrackState *secondscatstate = trajectory.trackStates().back();
     const Surface *triggersurf1 = nullptr;
@@ -1709,7 +1709,7 @@ namespace Trk {
         errors[1] = 10;
         
         firstpseudostate->setMeasurementErrors(errors);
-        trajectory.addMeasurementState(firstpseudostate);
+        trajectory.addMeasurementState(std::unique_ptr<GXFTrackState>(firstpseudostate));
         ATH_MSG_DEBUG("Adding PseudoMeasurement");
         continue;
       }
@@ -1751,7 +1751,7 @@ namespace Trk {
           errors[1] = 10;
           
           pseudostate1->setMeasurementErrors(errors);
-          trajectory.addMeasurementState(pseudostate1);
+          trajectory.addMeasurementState(std::unique_ptr<GXFTrackState>(pseudostate1));
           outlierstates2.push_back(pseudostate1);
         }
         
@@ -1779,7 +1779,7 @@ namespace Trk {
           errors[1] = 10;
           
           pseudostate2->setMeasurementErrors(errors);
-          trajectory.addMeasurementState(pseudostate2);
+          trajectory.addMeasurementState(std::unique_ptr<GXFTrackState>(pseudostate2));
           outlierstates2.push_back(pseudostate2);
         }
         
@@ -2819,7 +2819,7 @@ namespace Trk {
       }
       
       trajectory.addMaterialState(
-        new GXFTrackState(
+        std::make_unique<GXFTrackState>(
           newmeff,
           copytp ? tsos->trackParameters()->clone() : tsos->trackParameters()
         ),
@@ -3030,7 +3030,7 @@ namespace Trk {
         }
         
         // @TODO here index really is supposed to refer to the method argument index ?
-        bool ok = trajectory.addMeasurementState(ptsos, index);
+        bool ok = trajectory.addMeasurementState(std::unique_ptr<GXFTrackState>(ptsos), index);
         if (!ok) {
           ATH_MSG_WARNING("Duplicate hit on track");
         }
@@ -3597,9 +3597,9 @@ namespace Trk {
          * Create a new track state in the internal representation and load it
          * with any and all information we might have.
          */
-        GXFTrackState *matstate = new GXFTrackState(meff, nullptr);
+        std::unique_ptr<GXFTrackState> matstate = std::make_unique<GXFTrackState>(meff, nullptr);
         matstate->setPosition(intersect);
-        trajectory.addMaterialState(matstate);
+        trajectory.addMaterialState(std::move(matstate));
         
         ATH_MSG_DEBUG(
           "X0: " << meff->x0() << " qoverp: " << currentqoverp << 
@@ -4846,7 +4846,7 @@ namespace Trk {
             firstlayerno = layerno;
           }
 
-          trajectory.addMaterialState(matstates[layerno]);
+          trajectory.addMaterialState(std::unique_ptr<GXFTrackState>(matstates[layerno]));
           
           if ((layerpar != nullptr) && matEffects != pion && matEffects != muon) {
             const TrackingVolume *tvol = m_navigator->volume(layerpar->position());

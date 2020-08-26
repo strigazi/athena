@@ -29,8 +29,8 @@ namespace Trk {
     GXFTrajectory(GXFTrajectory & rhs);
     GXFTrajectory & operator=(GXFTrajectory & rhs);
 
-    bool addMeasurementState(GXFTrackState *, int index = -1);
-    void addMaterialState(GXFTrackState *, int index = -1);
+    bool addMeasurementState(std::unique_ptr<GXFTrackState>, int index = -1);
+    void addMaterialState(std::unique_ptr<GXFTrackState>, int index = -1);
 
     void setReferenceParameters(std::unique_ptr<const TrackParameters>);
     void setScatteringAngles(std::vector < std::pair < double, double > >&);

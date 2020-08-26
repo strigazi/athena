@@ -159,7 +159,7 @@ namespace Trk {
     return *this;
   }
 
-  bool GXFTrajectory::addMeasurementState(GXFTrackState * state, int index) {
+  bool GXFTrajectory::addMeasurementState(std::unique_ptr<GXFTrackState> state, int index) {
     if (!m_states.empty() && (m_states.back()->measurement() != nullptr)) {
       const MeasurementBase *meas = m_states.back()->measurement();
       const MeasurementBase *meas2 = state->measurement();
@@ -171,12 +171,6 @@ namespace Trk {
       ) {
         return false;
       }
-    }
-    
-    if (index == -1) {
-      m_states.push_back(state);
-    } else {
-      m_states.insert(m_states.begin() + index, state);
     }
     
     int nmeas = 0;
@@ -211,22 +205,50 @@ namespace Trk {
     if (state->measurementType() == TrackState::Pseudo) {
       m_npseudo++;
     }
+
+    if (index == -1) {
+      m_states.push_back(state.release());
+    } else {
+      m_states.insert(m_states.begin() + index, state.release());
+    }
     
     return true;
   }
 
-  void GXFTrajectory::addMaterialState(GXFTrackState * state, int index) {
+  void GXFTrajectory::addMaterialState(std::unique_ptr<GXFTrackState> state, int index) {
     const TrackParameters *par = state->trackParameters();
     GXFMaterialEffects *meff = state->materialEffects();
     
+    if (state->trackStateType() == TrackState::Scatterer) {
+      m_nscatterers++;
+      
+      if (meff->deltaE() == 0) {
+        m_ncaloscatterers++;
+      }
+    }
+    
+    if (meff->sigmaDeltaE() > 0) {
+      m_nbrems++;
+      
+      if (
+        (par != nullptr) && meff->sigmaDeltaPhi() == 0 && 
+        (par->position().perp() > 1400 || std::abs(par->position().z()) > 3700)
+      ) {
+        m_caloelossstate = state.get();
+      }
+    }
+    
+    m_toteloss += std::abs(meff->deltaE());
+    m_totx0 += meff->x0();
+
     if (index == -1) {
-      m_states.push_back(state);
+      m_states.push_back(state.release());
       
       if (meff->sigmaDeltaE() > 0) {
         m_brems.push_back(meff->delta_p());
       }
     } else {
-      m_states.insert(m_states.begin() + index, state);
+      m_states.insert(m_states.begin() + index, state.release());
       int previousscats = 0;
       int previousbrems = 0;
       
@@ -245,28 +267,6 @@ namespace Trk {
         m_brems.insert(m_brems.begin() + previousbrems, meff->delta_p());
       }
     }
-    
-    if (state->trackStateType() == TrackState::Scatterer) {
-      m_nscatterers++;
-      
-      if (meff->deltaE() == 0) {
-        m_ncaloscatterers++;
-      }
-    }
-    
-    if (meff->sigmaDeltaE() > 0) {
-      m_nbrems++;
-      
-      if (
-        (par != nullptr) && meff->sigmaDeltaPhi() == 0 && 
-        (par->position().perp() > 1400 || std::abs(par->position().z()) > 3700)
-      ) {
-        m_caloelossstate = state;
-      }
-    }
-    
-    m_toteloss += std::abs(meff->deltaE());
-    m_totx0 += meff->x0();
   }
 
   void GXFTrajectory::setReferenceParameters(std::unique_ptr<const TrackParameters> per) {
