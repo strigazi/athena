@@ -269,6 +269,14 @@ namespace Trk {
     }
   }
 
+  void GXFTrajectory::addBasicState(std::unique_ptr<GXFTrackState> state, int index) {
+    if (index == -1) {
+      m_states.push_back(state.release());
+    } else {
+      m_states.insert(m_states.begin() + index, state.release());
+    }
+  }
+
   void GXFTrajectory::setReferenceParameters(std::unique_ptr<const TrackParameters> per) {
     if (m_refpar != nullptr) {
       m_refpar = std::move(per);
@@ -560,11 +568,6 @@ namespace Trk {
 
   std::vector < GXFTrackState * >&GXFTrajectory::trackStates() {
     return m_states;
-  }
-
-  void
-    GXFTrajectory::setTrackStates(std::vector < GXFTrackState * >&states) {
-    m_states = states;
   }
 
   Amg::VectorX & GXFTrajectory::residuals() {

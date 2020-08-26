@@ -3428,10 +3428,9 @@ namespace Trk {
      */
     std::vector < GXFTrackState * >oldstates = trajectory.trackStates();
     std::vector < GXFTrackState * >&states = trajectory.trackStates();
-    std::vector < GXFTrackState * >newstates;
-
-    trajectory.setTrackStates(newstates);
+    states.clear();
     states.reserve(oldstates.size() + layers.size());
+
     int layerindex = 0;
     
     /*
@@ -3439,7 +3438,7 @@ namespace Trk {
      * them as they are presumably already fit.
      */
     for (int i = 0; i <= indexoffset; i++) {
-      states.push_back(oldstates[i]);
+      trajectory.addBasicState(std::unique_ptr<GXFTrackState>(oldstates[i]));
     }
     
     const TrackParameters *parforextrap = refpar;
@@ -3614,10 +3613,7 @@ namespace Trk {
         layerindex++;
       }
 
-      /*
-       * Add the state to the (aliased) output.
-       */
-      states.push_back(oldstates[i]);
+      trajectory.addBasicState(std::unique_ptr<GXFTrackState>(oldstates[i]));
     }
   }
 
@@ -4004,7 +4000,6 @@ namespace Trk {
     const MeasurementBase *lasthit = nullptr;
     std::vector < GXFTrackState * >&states = trajectory.trackStates();
     std::vector < GXFTrackState * > matstates;
-    std::vector < GXFTrackState * > newstates;
     std::unique_ptr< const std::vector < const TrackStateOnSurface *>,
                      void (*)(const std::vector<const TrackStateOnSurface *> *) >
       matvec(nullptr,&Trk::GlobalChi2Fitter::Cache::objVectorDeleter<TrackStateOnSurface>);
@@ -4780,7 +4775,7 @@ namespace Trk {
 
     // Now insert the material states into the trajectory
     std::vector < GXFTrackState * >oldstates = states;
-    trajectory.setTrackStates(newstates);
+    trajectory.trackStates().clear();
     states.reserve(oldstates.size() + matstates.size());
     int layerno = 0;
     int firstlayerno = -1;

@@ -31,10 +31,10 @@ namespace Trk {
 
     bool addMeasurementState(std::unique_ptr<GXFTrackState>, int index = -1);
     void addMaterialState(std::unique_ptr<GXFTrackState>, int index = -1);
+    void addBasicState(std::unique_ptr<GXFTrackState>, int index = -1);
 
     void setReferenceParameters(std::unique_ptr<const TrackParameters>);
     void setScatteringAngles(std::vector < std::pair < double, double > >&);
-    void setTrackStates(std::vector < GXFTrackState * >&);
     void setBrems(std::vector<double> &);
     void setNumberOfPerigeeParameters(int);
     void setConverged(bool);
