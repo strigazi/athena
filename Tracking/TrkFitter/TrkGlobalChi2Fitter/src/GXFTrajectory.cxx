@@ -64,10 +64,9 @@ namespace Trk {
     m_converged = rhs.m_converged;
     m_prefit = rhs.m_prefit;
     m_refpar.reset(rhs.m_refpar != nullptr ? rhs.m_refpar->clone() : nullptr);
-    m_states = rhs.m_states;
-    
-    for (int i = 0; i < (int) m_states.size(); i++) {
-      m_states[i] = new GXFTrackState(*rhs.m_states[i]);
+
+    for (std::unique_ptr<GXFTrackState> & i : rhs.m_states) {
+      m_states.push_back(std::make_unique<GXFTrackState>(*i));
     }
     
     m_scatteringangles = rhs.m_scatteringangles;
@@ -91,7 +90,7 @@ namespace Trk {
           meff->sigmaDeltaPhi() == 0 && 
           (par->position().perp() > 1400 || std::abs(par->position().z()) > 3700)
         ) {
-          m_caloelossstate = state;
+          m_caloelossstate = state.get();
         }
       }
     }
@@ -124,11 +123,9 @@ namespace Trk {
       m_prefit = rhs.m_prefit;
       m_refpar.reset(rhs.m_refpar != nullptr ? rhs.m_refpar->clone() : nullptr);
       
-      
-      m_states = rhs.m_states;
-      
-      for (int i = 0; i < (int) m_states.size(); i++) {
-        m_states[i] = new GXFTrackState(*rhs.m_states[i]);
+      m_states.clear();
+      for (std::unique_ptr<GXFTrackState> & i : rhs.m_states) {
+        m_states.push_back(std::make_unique<GXFTrackState>(*i));
       }
       
       m_scatteringangles = rhs.m_scatteringangles;
@@ -150,7 +147,7 @@ namespace Trk {
             (meff != nullptr) && (par != nullptr) && meff->sigmaDeltaE() > 0 && meff->sigmaDeltaPhi() == 0 && 
             (par->position().perp() > 1400 || std::abs(par->position().z()) > 3700)
           ) {
-            m_caloelossstate = state;
+            m_caloelossstate = state.get();
           }
         }
       }
@@ -207,9 +204,9 @@ namespace Trk {
     }
 
     if (index == -1) {
-      m_states.push_back(state.release());
+      m_states.push_back(std::move(state));
     } else {
-      m_states.insert(m_states.begin() + index, state.release());
+      m_states.insert(m_states.begin() + index, std::move(state));
     }
     
     return true;
@@ -242,13 +239,13 @@ namespace Trk {
     m_totx0 += meff->x0();
 
     if (index == -1) {
-      m_states.push_back(state.release());
+      m_states.push_back(std::move(state));
       
       if (meff->sigmaDeltaE() > 0) {
         m_brems.push_back(meff->delta_p());
       }
     } else {
-      m_states.insert(m_states.begin() + index, state.release());
+      m_states.insert(m_states.begin() + index, std::move(state));
       int previousscats = 0;
       int previousbrems = 0;
       
@@ -271,9 +268,9 @@ namespace Trk {
 
   void GXFTrajectory::addBasicState(std::unique_ptr<GXFTrackState> state, int index) {
     if (index == -1) {
-      m_states.push_back(state.release());
+      m_states.push_back(std::move(state));
     } else {
-      m_states.insert(m_states.begin() + index, state.release());
+      m_states.insert(m_states.begin() + index, std::move(state));
     }
   }
 
@@ -284,8 +281,8 @@ namespace Trk {
       m_refpar = std::move(per);
       m_nupstreamstates = m_nupstreamscatterers = m_nupstreamcaloscatterers = m_nupstreambrems = 0;
 
-      std::vector < GXFTrackState * >::iterator it = m_states.begin();
-      std::vector < GXFTrackState * >::iterator it2 = m_states.begin();
+      std::vector<std::unique_ptr<GXFTrackState>>::iterator it = m_states.begin();
+      std::vector<std::unique_ptr<GXFTrackState>>::iterator it2 = m_states.begin();
       
       while (it2 != m_states.end()) {
         double distance = 0;
@@ -566,7 +563,7 @@ namespace Trk {
     }
   }
 
-  std::vector < GXFTrackState * >&GXFTrajectory::trackStates() {
+  std::vector<std::unique_ptr<GXFTrackState>> & GXFTrajectory::trackStates() {
     return m_states;
   }
 
@@ -627,12 +624,12 @@ namespace Trk {
     GXFTrackState *firstmeasstate = nullptr;
     GXFTrackState *lastmeasstate = nullptr;
 
-    for (GXFTrackState * hit : trackStates()) {
+    for (std::unique_ptr<GXFTrackState> & hit : trackStates()) {
       if (hit->measurement() != nullptr) {
         if (firstmeasstate == nullptr) {
-          firstmeasstate = hit;
+          firstmeasstate = hit.get();
         }
-        lastmeasstate = hit;
+        lastmeasstate = hit.get();
       }
     }
 
@@ -664,7 +661,7 @@ namespace Trk {
   }
 
   void GXFTrajectory::resetCovariances(void) {
-    for (GXFTrackState *hit : trackStates()) {
+    for (std::unique_ptr<GXFTrackState> & hit : trackStates()) {
       hit->setTrackCovariance(nullptr);
     }
   }

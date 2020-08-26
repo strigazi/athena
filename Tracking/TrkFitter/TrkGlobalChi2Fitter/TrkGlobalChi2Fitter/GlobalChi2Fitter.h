@@ -395,7 +395,7 @@ namespace Trk {
       Cache & cache,
       std::vector<std::pair<const Layer *, const Layer *>> & layers,
       std::vector<std::pair<const Layer *, const Layer *>> & uplayers,
-      std::vector<GXFTrackState *> & states,
+      const std::vector<std::unique_ptr<GXFTrackState>> & states,
       GXFTrackState & first,
       GXFTrackState & last,
       const TrackParameters * refpar,

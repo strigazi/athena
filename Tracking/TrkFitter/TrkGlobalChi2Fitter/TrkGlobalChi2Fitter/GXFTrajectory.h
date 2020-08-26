@@ -63,7 +63,7 @@ namespace Trk {
     int numberOfPseudoMeasurements();
     int numberOfOutliers();
 
-    std::vector < GXFTrackState * >&trackStates();
+    std::vector<std::unique_ptr<GXFTrackState>> & trackStates();
     std::vector < std::pair < double, double >>&scatteringAngles();
     std::vector < std::pair < double, double >>&scatteringSigmas();
     std::vector<double> & brems();
@@ -96,7 +96,7 @@ namespace Trk {
     MagneticFieldProperties m_fieldprop = Trk::FullField;
 
   private:
-    std::vector < GXFTrackState * >m_states;  //!< The vector of track states, i.e. measurements, scatterers, brem points, and holes
+    std::vector<std::unique_ptr<GXFTrackState>> m_states;  //!< The vector of track states, i.e. measurements, scatterers, brem points, and holes
     int m_ndof;
     double m_chi2;
     double m_prevchi2;

@@ -423,7 +423,7 @@ namespace Trk {
     bool pseudoupdated = false;
     
     if (track != nullptr) {
-      for (GXFTrackState *pseudostate : trajectory.trackStates()) { 
+      for (std::unique_ptr<GXFTrackState> & pseudostate : trajectory.trackStates()) { 
         if (pseudostate == nullptr) {
           continue;
         }
@@ -1517,7 +1517,7 @@ namespace Trk {
     trajectory.addMaterialState(std::make_unique<GXFTrackState>(elossmeff.release(), elosspar.release()), -1);
     trajectory.addMaterialState(std::make_unique<GXFTrackState>(secondscatmeff.release(), lastscatpar.release()), -1);
     
-    GXFTrackState *secondscatstate = trajectory.trackStates().back();
+    GXFTrackState *secondscatstate = trajectory.trackStates().back().get();
     const Surface *triggersurf1 = nullptr;
     const Surface *triggersurf2 = nullptr;
     Amg::Vector3D triggerpos1(0, 0, 0);
@@ -1795,7 +1795,7 @@ namespace Trk {
           ) && 
           trajectory.trackStates().back()->trackStateType() == TrackState::Fittable
         ) {
-          outlierstates.push_back(trajectory.trackStates().back());
+          outlierstates.push_back(trajectory.trackStates().back().get());
           trajectory.setOutlier((int) trajectory.trackStates().size() - 1, true);
         }
       }
@@ -1841,13 +1841,13 @@ namespace Trk {
 
       for (int j = 0; j < (int) trajectory.trackStates().size(); j++) {
         for (const auto & i : outlierstates2) {
-          if (trajectory.trackStates()[j] == i) {
+          if (trajectory.trackStates()[j].get() == i) {
             trajectory.setOutlier(j, true);
           }
         }
         
         for (const auto & i : outlierstates) {
-          if (trajectory.trackStates()[j] == i) {
+          if (trajectory.trackStates()[j].get() == i) {
             trajectory.setOutlier(j, false);
           }
         }
@@ -2126,7 +2126,7 @@ namespace Trk {
       bool isbrem = false;
       double bremdp = 0;
       
-      for (GXFTrackState *state : trajectory.trackStates()) {
+      for (std::unique_ptr<GXFTrackState> & state : trajectory.trackStates()) {
         GXFMaterialEffects *meff = state->materialEffects();
         
         if (meff != nullptr) {
@@ -2221,7 +2221,7 @@ namespace Trk {
     bool pseudoupdated = false;
     
     if ((track != nullptr) && hasid && hasmuon) {
-      for (GXFTrackState *pseudostate : trajectory.trackStates()) {
+      for (std::unique_ptr<GXFTrackState> & pseudostate : trajectory.trackStates()) {
         if (
           (pseudostate == nullptr) || 
           pseudostate->measurementType() != TrackState::Pseudo || 
@@ -3422,12 +3422,9 @@ namespace Trk {
     const TrackParameters *refpar2,
     ParticleHypothesis matEffects
   ) const {
-    /*
-     * WARNING: Pointer aliasing! Watch out if you are a future maintainer of
-     * this code.
-     */
-    std::vector < GXFTrackState * >oldstates = trajectory.trackStates();
-    std::vector < GXFTrackState * >&states = trajectory.trackStates();
+    std::vector<std::unique_ptr<GXFTrackState>> & states = trajectory.trackStates();
+    std::vector<std::unique_ptr<GXFTrackState>> oldstates = std::move(states);
+
     states.clear();
     states.reserve(oldstates.size() + layers.size());
 
@@ -3438,7 +3435,7 @@ namespace Trk {
      * them as they are presumably already fit.
      */
     for (int i = 0; i <= indexoffset; i++) {
-      trajectory.addBasicState(std::unique_ptr<GXFTrackState>(oldstates[i]));
+      trajectory.addBasicState(std::move(oldstates[i]));
     }
     
     const TrackParameters *parforextrap = refpar;
@@ -3613,7 +3610,7 @@ namespace Trk {
         layerindex++;
       }
 
-      trajectory.addBasicState(std::unique_ptr<GXFTrackState>(oldstates[i]));
+      trajectory.addBasicState(std::move(oldstates[i]));
     }
   }
 
@@ -3621,7 +3618,7 @@ namespace Trk {
     Cache & cache,
     std::vector<std::pair<const Layer *, const Layer *>> & layers,
     std::vector<std::pair<const Layer *, const Layer *>> & upstreamlayers,
-    std::vector<GXFTrackState *> & oldstates,
+    const std::vector<std::unique_ptr<GXFTrackState>> & oldstates,
     GXFTrackState & firstsistate,
     GXFTrackState & lastsistate,
     const TrackParameters *refpar,
@@ -3642,8 +3639,8 @@ namespace Trk {
     double firstz2 = hasmat ? lastsistate.trackParameters()->position().z() : firstsistate.trackParameters()->position().z();
     double firstr2 = hasmat ? lastsistate.trackParameters()->position().perp() : firstsistate.trackParameters()->position().perp();
     
-    GXFTrackState *firststate = oldstates.front();
-    GXFTrackState *laststate = oldstates.back();
+    GXFTrackState *firststate = oldstates.front().get();
+    GXFTrackState *laststate = oldstates.back().get();
     
     /*
      * This number is particularly interesting, as it determines which side we
@@ -3871,7 +3868,7 @@ namespace Trk {
     const TrackParameters *refpar = refpar2;
     bool hasmat = false;
     int indexoffset = 0, lastmatindex = 0;
-    std::vector < GXFTrackState * >oldstates = trajectory.trackStates();
+    std::vector<std::unique_ptr<GXFTrackState>> & oldstates = trajectory.trackStates();
     
     GXFTrackState *firstsistate = nullptr;
     GXFTrackState *lastsistate = nullptr;
@@ -3911,9 +3908,9 @@ namespace Trk {
             
             oldstates[i]->setTrackParameters(std::move(tmppar));
           }
-          firstsistate = oldstates[i];
+          firstsistate = oldstates[i].get();
         }
-        lastsistate = oldstates[i];
+        lastsistate = oldstates[i].get();
       }
     }
     
@@ -3998,7 +3995,7 @@ namespace Trk {
     const MeasurementBase *lastidhit = nullptr;
     const MeasurementBase *firsthit = nullptr;
     const MeasurementBase *lasthit = nullptr;
-    std::vector < GXFTrackState * >&states = trajectory.trackStates();
+    std::vector<std::unique_ptr<GXFTrackState>> & states = trajectory.trackStates();
     std::vector < GXFTrackState * > matstates;
     std::unique_ptr< const std::vector < const TrackStateOnSurface *>,
                      void (*)(const std::vector<const TrackStateOnSurface *> *) >
@@ -4774,14 +4771,17 @@ namespace Trk {
     ATH_MSG_DEBUG("Number of layers: " << matstates.size());
 
     // Now insert the material states into the trajectory
-    std::vector < GXFTrackState * >oldstates = states;
-    trajectory.trackStates().clear();
-    states.reserve(oldstates.size() + matstates.size());
+    std::vector<std::unique_ptr<GXFTrackState>> & newstates = states;
+    std::vector<std::unique_ptr<GXFTrackState>> oldstates = std::move(newstates);
+
+    newstates.clear();
+    newstates.reserve(oldstates.size() + matstates.size());
+
     int layerno = 0;
     int firstlayerno = -1;
     
     if (cache.m_acceleration) {
-      states.push_back(oldstates[0]);
+      trajectory.addBasicState(std::move(oldstates[0]));
     }
     
     double cosphi = cos(refpar->parameters()[Trk::phi0]);
@@ -4858,7 +4858,7 @@ namespace Trk {
           layerno++;
         }
       }
-      states.push_back(oldstates[i]);
+      trajectory.addBasicState(std::move(oldstates[i]));
     }
 
     ATH_MSG_DEBUG("Total X0: " << trajectory.totalX0() << " total eloss: " << trajectory.totalEnergyLoss());
@@ -5009,18 +5009,18 @@ namespace Trk {
         GXFTrackState *scatstate2 = nullptr;
         int scatindex = 0;
         
-        for (std::vector < GXFTrackState * >::iterator it = trajectory.trackStates().begin(); it != trajectory.trackStates().end(); it++) {
+        for (std::vector<std::unique_ptr<GXFTrackState>>::iterator it = trajectory.trackStates().begin(); it != trajectory.trackStates().end(); it++) {
           if ((**it).trackStateType() == TrackState::Scatterer) {
             if (
               scatindex == trajectory.numberOfScatterers() / 2 || 
               (**it).materialEffects()->deltaE() == 0
             ) {
-              scatstate2 = (*it);
+              scatstate2 = (*it).get();
               break;
             }
             
             scatindex++;
-            scatstate = (*it);
+            scatstate = (*it).get();
           }
         }
         
@@ -5082,7 +5082,7 @@ namespace Trk {
         }
         
         if (((*it).materialEffects() != nullptr) && distance > 0) {
-          mymatvec.push_back(it);
+          mymatvec.push_back(it.get());
         }
       }
       
@@ -5264,7 +5264,7 @@ namespace Trk {
     Amg::MatrixX derivPool(5, nfitpar);
     derivPool.setZero();
 
-    for (GXFTrackState *state : trajectory.trackStates()) {
+    for (std::unique_ptr<GXFTrackState> & state : trajectory.trackStates()) {
       if (state->materialEffects() != nullptr) {
         continue;
       }
@@ -5479,7 +5479,7 @@ namespace Trk {
   ) const {
     ATH_MSG_DEBUG("fillResiduals");
 
-    std::vector < GXFTrackState * >&states = trajectory.trackStates();
+    std::vector<std::unique_ptr<GXFTrackState>> & states = trajectory.trackStates();
     double chi2 = 0;
     int scatno = 0;
     int bremno = 0;
@@ -5504,7 +5504,7 @@ namespace Trk {
     double maxbrempull = 0;
 
     for (int hitno = 0; hitno < (int) states.size(); hitno++) {
-      GXFTrackState *state = states[hitno];
+      std::unique_ptr<GXFTrackState> & state = states[hitno];
       const TrackParameters *currenttrackpar = state->trackParameters();
       TrackState::TrackStateType statetype = state->trackStateType();
       TrackState::MeasurementType hittype = state->measurementType();
@@ -5650,7 +5650,7 @@ namespace Trk {
               )
             ) {
               bremno_maxbrempull = bremno;
-              state_maxbrempull = state;
+              state_maxbrempull = state.get();
               maxbrempull = elosspull;
             }
           }
@@ -5789,7 +5789,7 @@ namespace Trk {
   ) const {
     ATH_MSG_DEBUG("fillDerivatives");
 
-    std::vector < GXFTrackState * >&states = trajectory.trackStates();
+    std::vector<std::unique_ptr<GXFTrackState>> & states = trajectory.trackStates();
     int scatno = 0;
     int bremno = 0;
     int measno = 0;
@@ -5806,7 +5806,7 @@ namespace Trk {
 
     ParamDefsAccessor paraccessor;
     
-    for (GXFTrackState *state : states) {
+    for (std::unique_ptr<GXFTrackState> & state : states) {
       if (
         onlybrem && 
         ((state->materialEffects() == nullptr) || state->materialEffects()->sigmaDeltaE() <= 0)
@@ -6030,7 +6030,7 @@ namespace Trk {
       int scatno = 0;
       int bremno = 0;
       for (int i = 0; i < (int) trajectory.trackStates().size(); i++) {
-        GXFTrackState *state = trajectory.trackStates()[i];
+        std::unique_ptr<GXFTrackState> & state = trajectory.trackStates()[i];
         GXFMaterialEffects *meff = state->materialEffects();
         if (meff == nullptr) {
           measno += state->numberOfMeasuredParameters();
@@ -6135,7 +6135,7 @@ namespace Trk {
     unsigned int scatno = 0;
     bool weightchanged = false;
     
-    for (GXFTrackState *thisstate : trajectory.trackStates()) {
+    for (std::unique_ptr<GXFTrackState> & thisstate : trajectory.trackStates()) {
       GXFMaterialEffects *meff = thisstate->materialEffects();
       
       if (meff != nullptr) {
@@ -6235,7 +6235,7 @@ namespace Trk {
           ATH_MSG_ERROR("Your assumption is wrong!!!!");
         }
 
-        for (GXFTrackState *thisstate : trajectory.trackStates()) {
+        for (std::unique_ptr<GXFTrackState> & thisstate : trajectory.trackStates()) {
           if ((thisstate->materialEffects() != nullptr) && thisstate->materialEffects()->sigmaDeltaPhi() != 0) {
             if (scatno >= cache.m_phiweight.size()) {
               std::stringstream message;
@@ -6357,7 +6357,7 @@ namespace Trk {
       scalefactor *= 2;
     }
     
-    std::vector < GXFTrackState * >&states = trajectory.trackStates();
+    std::vector<std::unique_ptr<GXFTrackState>> & states = trajectory.trackStates();
     Amg::VectorX & res = trajectory.residuals();
     Amg::VectorX & err = trajectory.errors();
     Amg::MatrixX & weightderiv = trajectory.weightedResidualDerivatives();
@@ -6375,7 +6375,7 @@ namespace Trk {
     bool hitrecalibrated = false;
     
     for (int stateno = 0; stateno < (int) states.size(); stateno++) {
-      GXFTrackState *state = states[stateno];
+      std::unique_ptr<GXFTrackState> & state = states[stateno];
       TrackState::TrackStateType statetype = state->trackStateType();
       
       if (statetype == TrackState::Fittable) {  // Hit is not (yet) an outlier
@@ -6532,7 +6532,7 @@ namespace Trk {
 
     while (!trackok && oldtrajectory->nDOF() > 0) {
       trackok = true;
-      std::vector < GXFTrackState * >&states = oldtrajectory->trackStates();
+      std::vector<std::unique_ptr<GXFTrackState>> & states = oldtrajectory->trackStates();
       Amg::VectorX & res = oldtrajectory->residuals();
       Amg::VectorX & err = oldtrajectory->errors();
       Amg::MatrixX & weightderiv = oldtrajectory->weightedResidualDerivatives();
@@ -6561,7 +6561,7 @@ namespace Trk {
       }
       
       for (int stateno = 0; stateno < (int) states.size(); stateno++) {
-        GXFTrackState *state = states[stateno];
+        std::unique_ptr<GXFTrackState> & state = states[stateno];
         TrackState::TrackStateType statetype = state->trackStateType();
         
         if (statetype == TrackState::Fittable) {
@@ -6603,7 +6603,7 @@ namespace Trk {
             if (sipull1 > maxsipull) {
               maxsipull = sipull1;
               measno_maxsipull = measno;
-              state_maxsipull = state;
+              state_maxsipull = state.get();
               stateno_maxsipull = stateno;
               hitno_maxsipull = hitno;
             }
@@ -6634,7 +6634,7 @@ namespace Trk {
         maxpull > 2 && 
         oldtrajectory->chi2() / oldtrajectory->nDOF() > .25 * m_chi2cut
       ) {
-        state_maxsipull = oldtrajectory->trackStates()[stateno_maxsipull];
+        state_maxsipull = oldtrajectory->trackStates()[stateno_maxsipull].get();
 
         const RIO_OnTrack *rot = dynamic_cast<const RIO_OnTrack *>(state_maxsipull->measurement());
 
@@ -7322,7 +7322,7 @@ namespace Trk {
         continue;
       }
       
-      const TrackStateOnSurface *trackState = makeTSOS(hit, matEffects);
+      const TrackStateOnSurface *trackState = makeTSOS(hit.get(), matEffects);
       trajectory->push_back(trackState);
     }
 
@@ -7434,7 +7434,7 @@ namespace Trk {
     // Loop over states, calculate track parameters and (optionally) jacobian at each state
     ATH_MSG_DEBUG("CalculateTrackParameters");
 
-    std::vector < GXFTrackState * >&states = trajectory.trackStates();
+    std::vector<std::unique_ptr<GXFTrackState>> & states = trajectory.trackStates();
     int nstatesupstream = trajectory.numberOfUpstreamStates();
     const TrackParameters *prevtrackpar = trajectory.referenceParameters();
     std::unique_ptr<const TrackParameters> tmptrackpar;
@@ -7692,7 +7692,7 @@ namespace Trk {
     std::vector<Matrix55, Eigen::aligned_allocator<Matrix55>> jacscat(trajectory.numberOfScatterers(), initialjac);
     std::vector<Matrix55, Eigen::aligned_allocator<Matrix55>> jacbrem(trajectory.numberOfBrems(), initialjac);
 
-    std::vector<GXFTrackState*> & states = trajectory.trackStates(); 
+    std::vector<std::unique_ptr<GXFTrackState>> & states = trajectory.trackStates();
     GXFTrackState *prevstate = nullptr, *state = nullptr;
 
     int hit_begin, hit_end, scatno, bremno;
@@ -7715,7 +7715,7 @@ namespace Trk {
         forward ? (hitno < hit_end) : (hitno >= hit_end); 
         hitno += (forward ? 1 : -1)
       ) {
-        state = states[hitno];
+        state = states[hitno].get();
         
         TrackState::TrackStateType tstype = state->trackStateType();
         bool fillderivmat = (tstype != TrackState::Scatterer && tstype != TrackState::Brem);
@@ -7828,7 +7828,7 @@ namespace Trk {
           bremno += (forward ? 1 : -1);
         }
         
-        prevstate = states[hitno];
+        prevstate = states[hitno].get();
       }
     }
   }
@@ -7843,7 +7843,7 @@ namespace Trk {
     //
     ATH_MSG_DEBUG("CalculateTrackErrors");
 
-    std::vector < GXFTrackState * >&states = trajectory.trackStates();
+    std::vector<std::unique_ptr<GXFTrackState>> & states = trajectory.trackStates();
     int nstatesupstream = trajectory.numberOfUpstreamStates();
     int nscatupstream = trajectory.numberOfUpstreamScatterers();
     int nbremupstream = trajectory.numberOfUpstreamBrems();
@@ -7868,7 +7868,7 @@ namespace Trk {
         prevstate = nullptr;
       }
       int index = indices[stateno];
-      GXFTrackState *state = states[index];
+      std::unique_ptr<GXFTrackState> & state = states[index];
       if (state->materialEffects() != nullptr) {
         if (state->trackStateType() == TrackState::Scatterer) {
           if (index >= nstatesupstream) {
@@ -7884,7 +7884,7 @@ namespace Trk {
             bremno--;
           }
         }
-        prevstate = state;
+        prevstate = state.get();
         continue;
       }
 
@@ -7983,7 +7983,7 @@ namespace Trk {
         }
         state->setFitQuality(std::move(fitQual));
       }
-      prevstate = state;
+      prevstate = state.get();
       hitno++;
     }
   }
