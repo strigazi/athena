@@ -277,8 +277,8 @@ def createTrackingFlags():
     icf.addFlag("maxSecondaryPixelHoles"    , maxSecondaryPixelHoles_ranges( icf ))
     icf.addFlag("maxSecondarySCTHoles"      , maxSecondarySCTHoles_ranges( icf ))
     icf.addFlag("maxSecondaryDoubleHoles"   , maxSecondaryDoubleHoles_ranges( icf ))
-    icf.addFlag("SecondarynHolesMax"        , maxSecondaryHoles_ranges( icf ))
-    icf.addFlag("SecondarynHolesGapMax"     , maxSecondaryHoles_ranges( icf ))
+    icf.addFlag("SecondarynHolesMax"        , 2 )
+    icf.addFlag("SecondarynHolesGapMax"     , 2 )
 
     icf.addFlag("rejectShortExtensions"     , rejectShortExtensions_ranges( icf )) # extension finder in back tracking
     icf.addFlag("SiExtensionCuts"           , SiExtensionCuts_ranges( icf )) # cut in Si Extensions before fit
@@ -1012,6 +1012,7 @@ def createDBMTrackingFlags():
 #####################################################################
 #####################################################################
 #####################################################################
+
 if __name__ == "__main__":
   #from AthenaConfiguration.AthConfigFlags import AthConfigFlags
   #from AthenaConfiguration.AllConfigFlags import ConfigFlags
@@ -1024,14 +1025,9 @@ if __name__ == "__main__":
   l.setLevel(DEBUG)
   ConfigFlags.dump()
   #ConfigFlags.loadAllDynamicFlags()
-  #print("cutLevel = ", ConfigFlags.InDet.cutLevel )
-  #maxPT = ConfigFlags.InDet.cutLevel
-  #print("default minRoIClusterEt", ConfigFlags.InDet.Tracking.minRoIClusterEt)
-  #print("default minSecondaryPt", ConfigFlags.InDet.Tracking.minSecondaryPt)
-  ###newFlags = ConfigFlags.cloneAndReplace("InDet.Tracking", "InDet.BeamGasTracking")
-  #print("minRoIClusterEt after replace", ConfigFlags.InDet.BeamGasTracking.minRoIClusterEt)
-  #print("minSecondaryPt after replace", ConfigFlags.InDet.BeamGasTracking.minSecondaryPt) 
-  #newFlags = ConfigFlags.cloneAndReplace("InDet.Tracking", "InDet.SCTandTRTTracking")
-  #print("minpT after replace", ConfigFlags.InDet.SCTandTRTTracking.minPT)
-  #print("maxpT after replace", ConfigFlags.InDet.SCTandTRTTracking.maxPT)
-  #ConfigFlags.dump()
+  print("cutLevel = ", ConfigFlags.InDet.cutLevel )
+  print("default minRoIClusterEt", ConfigFlags.InDet.Tracking.minRoIClusterEt)
+  print("default minSecondaryPt", ConfigFlags.InDet.Tracking.minSecondaryPt)
+  print("minRoIClusterEt in BeamGas mode", ConfigFlags.InDet.BeamGasTracking.minRoIClusterEt)
+  print("minSecondaryPt in BeamGas mode", ConfigFlags.InDet.BeamGasTracking.minSecondaryPt)
+
