@@ -8,6 +8,12 @@
 #include "TrkGlobalChi2Fitter/GXFTrackState.h"
 #include "TrkGeometry/MagneticFieldProperties.h"
 
+/**
+ * These headers, as well as other headers in the TrkGlobalChi2Fitter package
+ * use modern C++11 memory ownership semantics expressed through smart
+ * pointers. See GlobalChi2Fitter.h for more information.
+ */
+
 namespace Trk {
   class MeasurementBase;
   class MaterialEffectsBase;
