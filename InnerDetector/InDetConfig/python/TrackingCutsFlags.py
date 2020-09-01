@@ -1024,7 +1024,7 @@ if __name__ == "__main__":
   from AthenaCommon.Constants import DEBUG
   l.setLevel(DEBUG)
   ConfigFlags.dump()
-  #ConfigFlags.loadAllDynamicFlags()
+  ConfigFlags.loadAllDynamicFlags()
   print("cutLevel = ", ConfigFlags.InDet.cutLevel )
   print("default minRoIClusterEt", ConfigFlags.InDet.Tracking.minRoIClusterEt)
   print("default minSecondaryPt", ConfigFlags.InDet.Tracking.minSecondaryPt)
