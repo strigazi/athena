@@ -1021,8 +1021,8 @@ if __name__ == "__main__":
   ConfigFlags = createInDetConfigFlags()
   from AthenaCommon.Logging import logging
   l = logging.getLogger('AthConfigFlags')
-  from AthenaCommon.Constants import DEBUG
-  l.setLevel(DEBUG)
+  from AthenaCommon.Constants import WARNING
+  l.setLevel(WARNING)
   ConfigFlags.dump()
   ConfigFlags.loadAllDynamicFlags()
   print("cutLevel = ", ConfigFlags.InDet.cutLevel )
